@@ -18,11 +18,11 @@ const baseSelections = {
   directionSettings: {},
 };
 
-const scenarios = [
+const scenarios: Array<{ id: string; uxPattern: string; preserve: string[]; locks: string[]; preserveStructure: boolean }> = [
   { id: 'plain', uxPattern: 'none', preserve: ['content'], locks: ['content'], preserveStructure: false },
   { id: 'ux', uxPattern: 'workspace', preserve: ['content'], locks: ['content'], preserveStructure: false },
   { id: 'locked', uxPattern: 'none', preserve: ['content', 'structure'], locks: ['content', 'layout'], preserveStructure: true },
-] as const;
+];
 const failures: Array<{ templateId: string; variant: string; scenario: string; score: number; missing: string[] }> = [];
 const outputDirectory = await mkdtemp(join(tmpdir(), 'compose-template-parity-'));
 
