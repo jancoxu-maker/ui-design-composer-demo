@@ -33,7 +33,7 @@ export function FixedTemplateCanvas({ html, title, device }: Props) {
   return <div ref={rootRef} className={`fixed-template-stage fixed-template-${device}`}>
     <div className="fixed-template-viewport" style={{ width: Math.round(viewport.width * scale), height: Math.round(viewport.height * scale) }}>
       <div className="fixed-template-canvas" style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})` }}>
-        <iframe title={title} srcDoc={html} sandbox=""/>
+        <iframe title={title} srcDoc={html} sandbox="allow-scripts"/>
       </div>
     </div>
   </div>;

@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 
 const page = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
-const preview = fs.readFileSync(new URL('../app/components/visual-engine-preview.tsx', import.meta.url), 'utf8');
 const uxPreview = fs.readFileSync(new URL('../app/components/ux-preview-overlay.tsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 const api = fs.readFileSync(new URL('../app/api/design/route.ts', import.meta.url), 'utf8');
@@ -13,6 +12,9 @@ const deliveryPreview = fs.readFileSync(new URL('../app/components/responsive-de
 const agentPackage = fs.readFileSync(new URL('../lib/agent-template-package.ts', import.meta.url), 'utf8');
 const sharedCompiler = fs.readFileSync(new URL('../lib/shared-template-compiler.ts', import.meta.url), 'utf8');
 const sharedPreview = fs.readFileSync(new URL('../app/components/shared-template-preview.tsx', import.meta.url), 'utf8');
+const templateDocumentPreview = fs.readFileSync(new URL('../app/components/template-document-preview.tsx', import.meta.url), 'utf8');
+const fixedTemplateCanvas = fs.readFileSync(new URL('../app/components/fixed-template-canvas.tsx', import.meta.url), 'utf8');
+const navigationContract = fs.readFileSync(new URL('../lib/non-navigating-interaction-contract.ts', import.meta.url), 'utf8');
 const headingScale = fs.readFileSync(new URL('../lib/heading-scale.ts', import.meta.url), 'utf8');
 const capsuleCompiler = fs.readFileSync(new URL('../lib/capsule-template-compiler.ts', import.meta.url), 'utf8');
 const templateRenderer = fs.readFileSync(new URL('../lib/render-template-document.ts', import.meta.url), 'utf8');
@@ -49,9 +51,8 @@ if (!templateRenderer.includes('applyUxPatternContract')) failures.push('UX 预�
 
 const visualBlock = page.match(/const visualDirections = \[([\s\S]*?)\n\];/)?.[1] || '';
 const visualIds = [...visualBlock.matchAll(/\['([^']+)'/g)].map((match) => match[1]);
-if (!page.includes('`visual-${visualDirection}`')) failures.push('视觉方向没有绑定到实时预览根节点');
+if (!page.includes('direction={visualDirection}') || !page.includes('selections={liveTemplateSelections}')) failures.push('视觉方向和完整设置没有绑定到同源实时预览');
 for (const direction of visualIds) {
-  if (!preview.includes(`direction === '${direction}'`) && !['minimal','fluent','spectrum'].includes(direction)) failures.push(`视觉方向缺少独立预览：${direction}`);
   if (!capsules.includes(`  ${direction}: {`)) failures.push(`视觉方向缺少生成代码配方：${direction}`);
 }
 
@@ -83,9 +84,11 @@ for (const marker of ['findGeneratedMetadataLeaks','高级字段','MORPH','当�
   if (!contentGuard.includes(marker)) failures.push(`生成内容防泄漏缺少：${marker}`);
 }
 if (!api.includes('findGeneratedMetadataLeaks') || !api.includes('leaked generation metadata')) failures.push('生成接口缺少内容防泄漏处理');
-for (const marker of ["width: 1440","width: 390","'compare'","ResizeObserver","scaleMode === 'actual'",'containPreviewNavigation','allow-same-origin','scrollIntoView','preventDefault']) {
+for (const marker of ["width: 1440","width: 390","'compare'","ResizeObserver","scaleMode === 'actual'"]) {
   if (!deliveryPreview.includes(marker)) failures.push(`交付预览缺少真实设备画布：${marker}`);
 }
+if (!fixedTemplateCanvas.includes('sandbox="allow-scripts"') || fixedTemplateCanvas.includes('allow-same-origin')) failures.push('同源模板预览沙箱配置不安全或无法运行模板动效');
+for (const marker of ['preventDefault','composeNavigation','window.open=()=>null']) if (!navigationContract.includes(marker)) failures.push(`交付预览缺少空点击护栏：${marker}`);
 for (const marker of ['ResponsiveDeliveryPreview','适应窗口','100%','Web','手机','对比']) {
   if (!page.includes(marker)) failures.push(`客户端缺少交付预览控制：${marker}`);
 }
@@ -101,7 +104,7 @@ for (const marker of ['compileTemplateHtml','PageIR','variant-safe','variant-bal
 }
 if (!sharedPreview.includes('renderTemplateDocument')) failures.push('共享模板预览缺少统一编译器');
 for (const marker of ['compileCapsuleTemplateHtml','applyResponsivePreviewSafety','preserveCapsuleStage','applyCapsuleLayoutGuard']) if (!templateRenderer.includes(marker)) failures.push(`视觉库同源预览缺少：${marker}`);
-if (!page.includes('VisualEnginePreview') || !page.includes('UXPreviewOverlay')) failures.push('视觉库未使用独立互动模板演示');
+if (!page.includes('TemplateDocumentPreview') || page.includes('<VisualEnginePreview') || !templateDocumentPreview.includes('renderTemplateDocument')) failures.push('视觉库预览与最终交付没有使用同一个模板编译器');
 if (!api.includes('generateDeterministicTemplates') || !api.includes('pageIRSchema') || !api.includes('max_output_tokens: 6000')) failures.push('生成接口未使用 PageIR 与确定性模板编译');
 for (const family of ['data','board','editorial','portfolio','mobile','skeuomorphic','spatial','typelab','collage','exhibit','canvas','carousel','ascii','experimental']) {
   if (!capsuleCompiler.includes(`family === '${family}'`)) failures.push(`确定性模板编译器缺少家族：${family}`);
