@@ -10,7 +10,8 @@
     "build": "vinext build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "audit:options": "node scripts/audit-option-coverage.mjs"
+    "audit:options": "node scripts/audit-option-coverage.mjs",
+    "audit:templates": "node scripts/run-template-parity-audit.mjs"
   },
   "dependencies": {
     "next": "16.2.6",

@@ -7,6 +7,7 @@ import { isSharedTemplate, templateFamily, type PageIR } from '../../../lib/shar
 import { renderTemplateDocument } from '../../../lib/render-template-document';
 import { backendLog } from '../../../lib/server-logger';
 import { fetchPublicPageContext, PublicPageContextError } from '../../../lib/public-page-context';
+import { evaluateTemplateParity } from '../../../lib/template-parity';
 
 const pageIRSchema = {
   type: 'object',
@@ -170,6 +171,9 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
       const html = formatGeneratedHtml(renderTemplateDocument(templateId, parsed.page, selections, id));
       const metadataLeaks = findGeneratedMetadataLeaks(html, { material: source });
       if (metadataLeaks.length) throw new Error(`leaked generation metadata: ${metadataLeaks.join(', ')}`);
+      const preserveStructure = (Array.isArray(selections.locks) && selections.locks.includes('layout')) || (Array.isArray(selections.preserve) && selections.preserve.includes('structure'));
+      const templateParity = evaluateTemplateParity(templateId, html, { preserveStructure });
+      if (!templateParity.passed) throw new Error(`template parity failed: ${templateParity.missing.join(', ')}`);
       return {
         id,
         title: id === 'safe' ? '稳健继承' : id === 'balanced' ? '模板标准版' : '高表现力版',
@@ -177,7 +181,8 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
         coverage,
         templateId,
         templateFamily: isSharedTemplate(templateId) ? templateFamily(templateId) : capsule.family,
-        templateVerified: true,
+        templateVerified: templateParity.passed,
+        templateParity,
         html,
       };
     });
@@ -187,12 +192,15 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
       chars: variant.html.length,
       articles: (variant.html.match(/<article\b/gi) || []).length,
       profile: variant.html.includes(`data-variant-profile="${variant.id}"`),
+      templateParity: variant.templateParity.score,
     }));
     backendLog('info', 'generation.completed', requestId, { templateId, templateFamily: variants[0]?.templateFamily || '', variants: variants.length, variantStats, outputChars, durationMs: Date.now() - startedAt });
     return Response.json({ analysis: parsed.analysis, direction: `${parsed.direction} · 确定性模板编译`, variants, requestId }, { headers: { 'x-request-id': requestId } });
   } catch (error) {
-    backendLog('error', 'generation.compile_failed', requestId, { errorType: error instanceof Error ? error.name : 'unknown', durationMs: Date.now() - startedAt });
-    return Response.json({ error: 'AI 返回的页面内容模型无法解析，请重新生成。', requestId }, { status: 502, headers: { 'x-request-id': requestId } });
+    const failure = error instanceof Error ? error : new Error('unknown compile failure');
+    backendLog('error', 'generation.compile_failed', requestId, { errorType: failure.name, failure: failure.message, templateId, durationMs: Date.now() - startedAt });
+    const parityFailure = failure.message.startsWith('template parity failed:');
+    return Response.json({ error: parityFailure ? `生成结果没有完整继承所选模板（${failure.message.replace('template parity failed:', '').trim()}），已停止交付。` : 'AI 返回的页面内容模型无法解析，请重新生成。', requestId }, { status: 502, headers: { 'x-request-id': requestId } });
   }
 }
 
