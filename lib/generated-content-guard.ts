@@ -2,6 +2,7 @@ type GuardContext = {
   engine?: string;
   source?: string;
   visualId?: string;
+  material?: string;
 };
 
 function visibleBodyText(html: string) {
@@ -33,6 +34,9 @@ export function findGeneratedMetadataLeaks(html: string, context: GuardContext =
     ['内部中文说明', /当前视觉实现引擎|模板代码配方|生成约束|保留原有体验|未增加(?:任务清单|审核栏|监控面板|转化漏斗)/],
   ];
   for (const [label, pattern] of patterns) if (pattern.test(text)) leaks.push(label);
+
+  const sampleCopy = text.match(/\bCREATIVE\s+OPERATIONS\b|\bISSUE\s+0?4\b|\bFIELD\s+NOTE\b|\bMASTER\s+CONTROL\b|\bWORLDWIDE\b/i)?.[0];
+  if (sampleCopy && !String(context.material || '').toLocaleLowerCase().includes(sampleCopy.toLocaleLowerCase())) leaks.push('模板示例文案');
 
   const sourceNames = [context.engine || '', context.source || ''].flatMap(meaningfulSourceNames);
   for (const name of sourceNames) {

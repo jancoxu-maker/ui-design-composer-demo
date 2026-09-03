@@ -6,6 +6,7 @@ import { findGeneratedMetadataLeaks } from '../../../lib/generated-content-guard
 import { isSharedTemplate, templateFamily, type PageIR } from '../../../lib/shared-template-compiler';
 import { renderTemplateDocument } from '../../../lib/render-template-document';
 import { backendLog } from '../../../lib/server-logger';
+import { fetchPublicPageContext, PublicPageContextError } from '../../../lib/public-page-context';
 
 const pageIRSchema = {
   type: 'object',
@@ -25,7 +26,7 @@ const pageIRSchema = {
         secondaryAction: { type: 'string', maxLength: 80 },
         nav: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'string', maxLength: 30 } },
         stats: {
-          type: 'array', minItems: 1, maxItems: 4,
+          type: 'array', minItems: 0, maxItems: 4,
           items: { type: 'object', additionalProperties: false, properties: { label: { type: 'string', maxLength: 50 }, value: { type: 'string', maxLength: 24 }, detail: { type: 'string', maxLength: 100 } }, required: ['label','value','detail'] },
         },
         items: {
@@ -107,7 +108,7 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
   const layoutRecomposed = !(Array.isArray(selections.locks) && selections.locks.includes('layout')) && !(Array.isArray(selections.preserve) && selections.preserve.includes('structure'));
   const prompt = `你是产品信息架构师。你的任务不是设计 HTML，而是把输入界面整理成可供本地视觉模板编译的 PageIR。
 
-必须忠实保留输入界面的品牌、主要标题、导航、关键数字、项目或内容条目与主要行动。preserve 和 locks 中锁定的内容不得改写。根据 goal 调整信息重点，根据 audience 调整解释程度，根据 uxPattern 补足必要的状态和行动，但不得把模板名、设计术语、字段名或验证说明写入页面内容。
+必须忠实保留输入材料中实际出现的品牌、主要标题、导航、关键数字、项目或内容条目与主要行动。不得使用你对该品牌的常识补写页面，不得猜测导航、客户、指标、价格、日期或功能。输入没有关键数字时 stats 必须返回空数组；某项文字没有依据时应省略、缩短或复用已有文字，绝不能虚构。preserve 和 locks 中锁定的内容不得改写。根据 goal 调整信息重点，根据 audience 调整解释程度，根据 uxPattern 只调整已有内容的组织方式，但不得把模板名、设计术语、字段名或验证说明写入页面内容。
 
 本次页面结构模式：${layoutRecomposed ? `重新编排。不要照抄输入页面的模块顺序；请按照 ${templateId} 的信息架构重新确定主项目、次要项目、数据摘要和行动顺序，并在 PageIR 数组顺序中体现新的主次关系。` : '保留结构。保持输入页面的导航、数据和内容条目顺序，不要主动重排。'}
 
@@ -156,18 +157,30 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
     const outputText = data.output_text || data.output?.flatMap((item) => item.content || []).filter((item) => item.type === 'output_text').map((item) => item.text || '').join('') || '';
     const parsed = JSON.parse(outputText) as { analysis: string; direction: string; page: PageIR };
     if (!parsed.page?.title || !Array.isArray(parsed.page.items)) throw new Error('invalid page ir');
+    if (body.sourceType === 'url') {
+      const sourceText = source.toLocaleLowerCase();
+      parsed.page.stats = parsed.page.stats.filter((stat) => {
+        const tokens = stat.value.match(/\d+(?:[.,]\d+)?/g) || [];
+        return tokens.length > 0 && tokens.every((token) => sourceText.includes(token.toLocaleLowerCase()));
+      });
+    }
     const coverage = deterministicCoverage(selections);
     const capsule = getTemplateGenerationCapsule(templateId);
-    const variants = (['safe','balanced','bold'] as const).map((id) => ({
-      id,
-      title: id === 'safe' ? '稳健继承' : id === 'balanced' ? '模板标准版' : '高表现力版',
-      summary: id === 'safe' ? '减少内容单元、取消漂移并使用稳定网格。' : id === 'balanced' ? '完整采用所选模板的标准结构和视觉语言。' : '放大首屏比例、非对称构图与主项目表现。',
-      coverage,
-      templateId,
-      templateFamily: isSharedTemplate(templateId) ? templateFamily(templateId) : capsule.family,
-      templateVerified: true,
-      html: formatGeneratedHtml(renderTemplateDocument(templateId, parsed.page, selections, id)),
-    }));
+    const variants = (['safe','balanced','bold'] as const).map((id) => {
+      const html = formatGeneratedHtml(renderTemplateDocument(templateId, parsed.page, selections, id));
+      const metadataLeaks = findGeneratedMetadataLeaks(html, { material: source });
+      if (metadataLeaks.length) throw new Error(`leaked generation metadata: ${metadataLeaks.join(', ')}`);
+      return {
+        id,
+        title: id === 'safe' ? '稳健继承' : id === 'balanced' ? '模板标准版' : '高表现力版',
+        summary: id === 'safe' ? '减少内容单元、取消漂移并使用稳定网格。' : id === 'balanced' ? '完整采用所选模板的标准结构和视觉语言。' : '放大首屏比例、非对称构图与主项目表现。',
+        coverage,
+        templateId,
+        templateFamily: isSharedTemplate(templateId) ? templateFamily(templateId) : capsule.family,
+        templateVerified: true,
+        html,
+      };
+    });
     const outputChars = variants.reduce((total, variant) => total + variant.html.length, 0);
     const variantStats = variants.map((variant) => ({
       id: variant.id,
@@ -213,7 +226,7 @@ export async function POST(request: Request) {
     return Response.json({ error: '请求格式无效。', requestId }, { status: 400, headers: { 'x-request-id': requestId } });
   }
 
-  const source = body.source || '';
+  let source = body.source || '';
   const selections = body.selections || {};
   backendLog('info', 'generation.received', requestId, {
     sourceType: body.sourceType || 'template',
@@ -227,6 +240,19 @@ export async function POST(request: Request) {
   if (source.length > 8_000_000) {
     backendLog('warn', 'generation.rejected', requestId, { reason: 'source_too_large', sourceBytes: new TextEncoder().encode(source).length });
     return Response.json({ error: '输入文件过大，请使用 6MB 以内的界面截图或精简 HTML。', requestId }, { status: 413, headers: { 'x-request-id': requestId } });
+  }
+
+  if (body.sourceType === 'url') {
+    try {
+      const pageContext = await fetchPublicPageContext(source);
+      source = pageContext.context;
+      backendLog('info', 'source.url_fetched', requestId, { hostname: pageContext.hostname, contextChars: source.length, durationMs: Date.now() - startedAt });
+    } catch (error) {
+      const status = error instanceof PublicPageContextError ? error.status : 422;
+      const message = error instanceof PublicPageContextError ? error.message : '无法读取这个公开页面，请改用截图或 HTML。';
+      backendLog('warn', 'source.url_failed', requestId, { errorType: error instanceof Error ? error.name : 'unknown', durationMs: Date.now() - startedAt });
+      return Response.json({ error: message, requestId }, { status, headers: { 'x-request-id': requestId } });
+    }
   }
 
   return generateDeterministicTemplates(apiKey, body, source, requestId, startedAt);
