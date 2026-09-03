@@ -25,7 +25,7 @@ export function renderTemplateDocument(
     preserveCapsuleStage(
       applyResponsivePreviewSafety(
         applySelectionContract(
-          compileCapsuleTemplateHtml(templateId, page, selections, variant),
+          compileCapsuleTemplateHtml(String(templateId || 'minimal'), page as PageIR, selections, variant),
           selections,
         ),
       ),
