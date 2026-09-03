@@ -3,9 +3,10 @@
 import { useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { getVisualStyleRecipe } from '../lib/visual-style-engine';
+import { UXPreviewOverlay } from './components/ux-preview-overlay';
 import { ResponsiveDeliveryPreview } from './components/responsive-delivery-preview';
 import type { DeliveryDevice, DeliveryScaleMode } from './components/responsive-delivery-preview';
-import { TemplateDocumentPreview } from './components/template-document-preview';
+import { VisualEnginePreview } from './components/visual-engine-preview';
 import { isSharedTemplate } from '../lib/shared-template-compiler';
 import { applyHeadingScale } from '../lib/heading-scale';
 
@@ -196,32 +197,25 @@ export default function Home() {
   const compatibleTypeOptions = typeOptions.filter(([id]) => activeControls.fonts.includes(id));
   const compatibleCorners = cornerOptions;
   const activeDirectionSettings = Object.fromEntries(activeFields.map((field) => [field.key, directionSettings[`${visualDirection}:${field.key}`] || field.defaultValue]));
+  const directionSettingClasses = activeFields.map((field) => `setting-${field.key}-${activeDirectionSettings[field.key]}`).join(' ');
+  const richPreviewClasses = [
+    `style-${style}`,
+    `template-${template}`,
+    `type-${typeTone}`,
+    `corner-${corners}`,
+    `depth-${depth}`,
+    `image-${imageStyle}`,
+    `component-${componentTone}`,
+    `color-${colorStrategy}`,
+    `motion-${motionProfile}`,
+    `goal-${goal}`,
+    `audience-${audience}`,
+    directionSettingClasses,
+  ].join(' ');
   const activeDirectionName = visualDirections.find(([id]) => id === visualDirection)?.[1] || '现代产品极简';
   const activeUXPattern = uxPatterns.find((pattern) => pattern.id === uxPattern) || uxPatterns[2];
   const sourcePreviewLabel = '通用演示内容';
   const audienceLabel = audience === 'general' ? '大众用户' : audience === 'professional' ? '专业用户' : '内部团队';
-  const previewSelections = useMemo(() => ({
-    goal,
-    audience,
-    uxPattern,
-    visualDirection,
-    visualDirectionName: activeDirectionName,
-    style,
-    template,
-    typeTone,
-    colorStrategy,
-    corners,
-    motionProfile,
-    depth,
-    imageStyle,
-    componentTone,
-    directionSettings: activeDirectionSettings,
-    density,
-    motion,
-    preserve,
-    locks,
-    accent,
-  }), [goal, audience, uxPattern, visualDirection, activeDirectionName, style, template, typeTone, colorStrategy, corners, motionProfile, depth, imageStyle, componentTone, activeDirectionSettings, density, motion, preserve, locks, accent]);
   const deliveryHtml = useMemo(() => activeVariant ? applyHeadingScale(activeVariant.html, headingScale) : '', [activeVariant, headingScale]);
 
   function toggleLock(key: string) {
@@ -471,7 +465,7 @@ export default function Home() {
         <section className="preview" aria-label="视觉引擎与生成结果">
           <header><div><i/> <b>{activeVariant ? 'HTML 交付结果' : '视觉引擎演示'}</b><small>{activeVariant ? activeVariant.title : `${activeRecipe.engine} · 非原稿预览`}</small></div>{activeVariant ? <nav className="output-tabs" aria-label="HTML 结果查看方式"><button className={outputMode === 'preview' ? 'active' : ''} type="button" onClick={() => setOutputMode('preview')}>效果</button><button className={outputMode === 'code' ? 'active' : ''} type="button" onClick={() => setOutputMode('code')}>代码</button><button type="button" onClick={copyHtml}>{copyState === 'copied' ? '已复制' : '复制'}</button><button type="button" onClick={downloadHtml}>下载</button></nav> : <nav aria-label="演示尺寸"><button className={previewDevice !== 'mobile' ? 'active' : ''} type="button" onClick={() => setPreviewDevice('desktop')} aria-label="桌面端演示">▭</button><button className={previewDevice === 'mobile' ? 'active' : ''} type="button" onClick={() => setPreviewDevice('mobile')} aria-label="移动端演示">▯</button><button className={previewZoom === 85 ? 'active' : ''} type="button" onClick={() => setPreviewZoom(previewZoom === 100 ? 85 : 100)}>{previewZoom}%</button></nav>}</header>
           {activeVariant && outputMode === 'preview' && <div className="delivery-toolbar"><nav aria-label="交付预览设备">{([['desktop','Web'],['mobile','手机'],['compare','对比']] as const).map(([id,label]) => <button key={id} type="button" className={previewDevice === id ? 'active' : ''} onClick={() => setPreviewDevice(id)}>{label}</button>)}</nav><label className="delivery-type-control"><span><b>标题大小</b><output>{headingScale}%</output></span><input aria-label="调整各级标题大小" type="range" min="80" max="125" step="5" value={headingScale} onChange={(event) => setHeadingScale(Number(event.target.value))}/></label><nav aria-label="交付预览缩放">{([['fit','适应窗口'],['actual','100%']] as const).map(([id,label]) => <button key={id} type="button" className={deliveryScaleMode === id ? 'active' : ''} onClick={() => setDeliveryScaleMode(id)}>{label}</button>)}</nav></div>}
-          <div className={`preview-shell ${activeVariant && outputMode === 'preview' ? 'delivery-result-shell' : ''}`}><div className={`preview-viewport ${activeVariant ? 'delivery-mode' : `device-${previewDevice} zoom-${previewZoom}`}`}>{activeVariant ? outputMode === 'preview' ? <ResponsiveDeliveryPreview html={deliveryHtml} title={activeVariant.title} device={previewDevice} scaleMode={deliveryScaleMode}/> : <div className="code-delivery"><header><span><b>完整单页 HTML</b><small>{activeVariant.templateId} {isSharedTemplate(activeVariant.templateId) ? '共享模板已编译' : '视觉模板已编译'} · 标题 {headingScale}% · 包含结构、样式、响应式与动效</small></span><em>{deliveryHtml.length.toLocaleString()} 字符</em></header><pre><code>{deliveryHtml}</code></pre></div> : <div className={`ux-live-frame ux-${uxPattern}`}><TemplateDocumentPreview direction={visualDirection} title={previewTitle} selections={previewSelections} device={previewDevice === 'mobile' ? 'mobile' : 'desktop'}/></div>}</div></div>
+          <div className={`preview-shell ${activeVariant && outputMode === 'preview' ? 'delivery-result-shell' : ''}`}><div className={`preview-viewport ${activeVariant ? 'delivery-mode' : `device-${previewDevice} zoom-${previewZoom}`}`}>{activeVariant ? outputMode === 'preview' ? <ResponsiveDeliveryPreview html={deliveryHtml} title={activeVariant.title} device={previewDevice} scaleMode={deliveryScaleMode}/> : <div className="code-delivery"><header><span><b>完整单页 HTML</b><small>{activeVariant.templateId} {isSharedTemplate(activeVariant.templateId) ? '共享模板已编译' : '视觉模板已编译'} · 标题 {headingScale}% · 包含结构、样式、响应式与动效</small></span><em>{deliveryHtml.length.toLocaleString()} 字符</em></header><pre><code>{deliveryHtml}</code></pre></div> : <div className={`ux-live-frame ux-${uxPattern}`}><VisualEnginePreview direction={visualDirection} directionName={activeDirectionName} title={previewTitle} goal={goal} audience={audience} accent={accent} density={density} motion={motion} className={richPreviewClasses}/><UXPreviewOverlay pattern={uxPattern} patternName={activeUXPattern.name}/></div>}</div></div>
           <div className="tokens preview-contract-tokens" aria-label="实时生效的完整配置"><span className="verified">✓ 实时映射</span><span>{sourcePreviewLabel}</span><span>{goals.find(([id]) => id === goal)?.[1]}</span><span>{audienceLabel}</span><span>{activeUXPattern.name}</span><span>{activeDirectionName}</span><span>{typeOptions.find(([id]) => id === typeTone)?.[1]}</span>{activeFields.map((field) => <span key={field.key}>{field.label}：{field.options.find(([id]) => id === activeDirectionSettings[field.key])?.[1]}</span>)}<span>{cornerOptions.find(([id]) => id === corners)?.[1]}</span><span><i style={{background: accent}}/>{accent.toUpperCase()}</span><span>密度 {density}</span><span>动效 {motion}</span>{preserve.map((id) => <span key={id} className="locked-token">锁定：{preserveOptions.find(([key]) => key === id)?.[1]}</span>)}</div>
           {results && designResult && <div className="results" role="status"><header><span><small>{designResult.direction}</small><b>已生成 3 个可运行 HTML 版本</b></span><button type="button" onClick={() => setResults(false)}>×</button></header><div>{designResult.variants.map((variant) => <button key={variant.id} type="button" className={`${activeVariant?.id === variant.id ? 'recommended' : ''}`} onClick={() => { setActiveVariant(variant); setOutputMode('preview'); }}><span className={`result-pic ${variant.id === 'balanced' ? 'brand' : variant.id === 'bold' ? 'explore' : 'safe'}`}><i/><i/><i/></span><b>{variant.title}</b><small>{variant.summary}</small><mark>✓ {variant.templateVerified ? `${variant.templateId} ${isSharedTemplate(variant.templateId) ? '共享模板' : '视觉模板'}` : '模板'} · {Object.keys(variant.coverage).length}/11 约束</mark>{variant.id === 'balanced' && <em>推荐</em>}</button>)}</div></div>}
         </section>

@@ -2,7 +2,6 @@ import fs from 'node:fs';
 
 const page = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
 const preview = fs.readFileSync(new URL('../app/components/visual-engine-preview.tsx', import.meta.url), 'utf8');
-const unifiedPreview = fs.readFileSync(new URL('../app/components/template-document-preview.tsx', import.meta.url), 'utf8');
 const uxPreview = fs.readFileSync(new URL('../app/components/ux-preview-overlay.tsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 const api = fs.readFileSync(new URL('../app/api/design/route.ts', import.meta.url), 'utf8');
@@ -98,7 +97,7 @@ for (const marker of ['compileTemplateHtml','PageIR','variant-safe','variant-bal
 }
 if (!sharedPreview.includes('renderTemplateDocument')) failures.push('共享模板预览缺少统一编译器');
 for (const marker of ['compileCapsuleTemplateHtml','applyResponsivePreviewSafety','preserveCapsuleStage','applyCapsuleLayoutGuard']) if (!templateRenderer.includes(marker)) failures.push(`视觉库同源预览缺少：${marker}`);
-if (!page.includes('TemplateDocumentPreview') || !unifiedPreview.includes('renderTemplateDocument')) failures.push('视觉库未使用同源模板演示');
+if (!page.includes('VisualEnginePreview') || !page.includes('UXPreviewOverlay')) failures.push('视觉库未使用独立互动模板演示');
 if (!api.includes('generateDeterministicTemplates') || !api.includes('pageIRSchema') || !api.includes('max_output_tokens: 6000')) failures.push('生成接口未使用 PageIR 与确定性模板编译');
 for (const family of ['data','board','editorial','portfolio','mobile','skeuomorphic','spatial','typelab','collage','exhibit','canvas','carousel','ascii','experimental']) {
   if (!capsuleCompiler.includes(`family === '${family}'`)) failures.push(`确定性模板编译器缺少家族：${family}`);
