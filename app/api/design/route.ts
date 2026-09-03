@@ -1,10 +1,10 @@
 import { getVisualStyleRecipe } from '../../../lib/visual-style-engine';
 import { applyTemplateCapsule, getTemplateGenerationCapsule, hasTemplateSignature } from '../../../lib/template-generation-capsules';
 import { formatGeneratedHtml } from '../../../lib/format-generated-html';
-import { applyResponsivePreviewSafety, hasResponsiveTextStructure } from '../../../lib/responsive-preview-safety';
+import { hasResponsiveTextStructure } from '../../../lib/responsive-preview-safety';
 import { findGeneratedMetadataLeaks } from '../../../lib/generated-content-guard';
-import { compileTemplateHtml, isSharedTemplate, templateFamily, type PageIR } from '../../../lib/shared-template-compiler';
-import { applyCapsuleLayoutGuard, compileCapsuleTemplateHtml, preserveCapsuleStage } from '../../../lib/capsule-template-compiler';
+import { isSharedTemplate, templateFamily, type PageIR } from '../../../lib/shared-template-compiler';
+import { renderTemplateDocument } from '../../../lib/render-template-document';
 import { backendLog } from '../../../lib/server-logger';
 
 const pageIRSchema = {
@@ -166,9 +166,7 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
       templateId,
       templateFamily: isSharedTemplate(templateId) ? templateFamily(templateId) : capsule.family,
       templateVerified: true,
-      html: formatGeneratedHtml(isSharedTemplate(templateId)
-        ? compileTemplateHtml(templateId, parsed.page, selections, id)
-        : applyCapsuleLayoutGuard(preserveCapsuleStage(applyResponsivePreviewSafety(enforceSelectionContract(compileCapsuleTemplateHtml(templateId, parsed.page, selections, id), selections))))),
+      html: formatGeneratedHtml(renderTemplateDocument(templateId, parsed.page, selections, id)),
     }));
     const outputChars = variants.reduce((total, variant) => total + variant.html.length, 0);
     const variantStats = variants.map((variant) => ({
@@ -183,35 +181,6 @@ async function generateDeterministicTemplates(apiKey: string, body: DesignReques
     backendLog('error', 'generation.compile_failed', requestId, { errorType: error instanceof Error ? error.name : 'unknown', durationMs: Date.now() - startedAt });
     return Response.json({ error: 'AI 返回的页面内容模型无法解析，请重新生成。', requestId }, { status: 502, headers: { 'x-request-id': requestId } });
   }
-}
-
-function safeAttr(value: unknown) {
-  return String(value ?? '').replace(/[&"<>]/g, (character) => ({ '&':'&amp;','"':'&quot;','<':'&lt;','>':'&gt;' }[character] || character));
-}
-
-function enforceSelectionContract(html: string, selections: Record<string, unknown>) {
-  const accent = typeof selections.accent === 'string' && /^#[0-9a-f]{6}$/i.test(selections.accent) ? selections.accent : '#7657ff';
-  const density = Math.max(20, Math.min(85, Number(selections.density) || 52));
-  const motion = Math.max(10, Math.min(90, Number(selections.motion) || 58));
-  const cardMin = Math.round(149 - density * .72);
-  const cardPad = Math.round(20 - density * .12);
-  const lineHeight = (1.82 - density * .006).toFixed(2);
-  const duration = Math.round(920 - motion * 6);
-  const radius = selections.corners === 'sharp' ? '0px' : selections.corners === 'pill' ? '999px' : '18px';
-  const cardRadius = selections.corners === 'sharp' ? '0px' : selections.corners === 'pill' ? '28px' : '18px';
-  const accentValue = Number.parseInt(accent.slice(1), 16);
-  const accentLuminance = ((accentValue >> 16) * 299 + ((accentValue >> 8) & 255) * 587 + (accentValue & 255) * 114) / 1000;
-  const accentContrast = accentLuminance > 150 ? '#17131a' : '#ffffff';
-  const fonts: Record<string,string> = {
-    serif:'Georgia,"Songti SC",serif', grotesk:'Inter,"PingFang SC",sans-serif', human:'Avenir,"PingFang SC",sans-serif', mono:'ui-monospace,monospace',
-    display:'Didot,"Songti SC",serif', condensed:'"Arial Narrow","PingFang SC",sans-serif', rounded:'"Arial Rounded MT Bold","PingFang SC",sans-serif',
-    system:'-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif', slab:'Rockwell,Georgia,serif', contrast:'Didot,Bodoni,serif', hand:'"Kaiti SC",cursive', hybrid:'Georgia,"Songti SC",serif',
-  };
-  const font = fonts[String(selections.typeTone)] || fonts.system;
-  const contract = `<style id="compose-selection-contract">:root{--compose-accent:${accent};--compose-accent-contrast:${accentContrast};--compose-radius:${radius};--compose-card-radius:${cardRadius};--compose-card-min:${cardMin}px;--compose-card-pad:${cardPad}px;--compose-leading:${lineHeight};--compose-duration:${duration}ms}body{font-family:${font}}:where(article,[class*="card"],[class*="panel"]){min-height:var(--compose-card-min);padding-block:var(--compose-card-pad);border-radius:var(--compose-card-radius)}:where(p,li,small,td,dd){line-height:var(--compose-leading)}:where(button,a,[role="button"],[aria-selected="true"],[aria-pressed="true"]){transition-duration:var(--compose-duration)}:where(button.primary,[data-primary],[aria-current],[aria-selected="true"],[aria-pressed="true"]){border-radius:var(--compose-radius);border-color:var(--compose-accent);background:var(--compose-accent);color:var(--compose-accent-contrast);accent-color:var(--compose-accent)}:where(a,:focus-visible){text-decoration-color:var(--compose-accent);outline-color:var(--compose-accent)}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}</style>`;
-  const selectionValue: Record<string, unknown> = { ...selections, ux: selections.uxPattern, visual: selections.visualDirection, type: selections.typeTone };
-  const attributes = coverageKeys.map((key) => `data-compose-${key.toLowerCase()}="${safeAttr(key === 'directionSettings' ? JSON.stringify(selections.directionSettings || {}) : key === 'preserveLocks' ? `${JSON.stringify(selections.preserve || [])}|${JSON.stringify(selections.locks || [])}` : selectionValue[key])}"`).join(' ');
-  return html.replace(/<body([^>]*)>/i, `<body$1 ${attributes}>`).replace(/<\/head>/i, `${contract}</head>`);
 }
 
 function securePreview(html: string) {

@@ -2,10 +2,32 @@ const responsiveSafetyCss = `html{max-width:100%;overflow-x:clip}body{max-width:
 
 const mobileFamilySafetyCss = `@container(max-width:640px){body main{display:block!important;width:100%!important;max-width:100%!important}body [data-template-role="navigation"]{display:flex!important;width:100%!important;gap:10px!important}body [data-template-role="navigation"] nav{display:none!important}body [data-template-role="hero"]{display:block!important;grid-column:auto!important;width:100%!important}body [data-template-role="hero"] h1{max-width:100%!important;word-break:normal!important;overflow-wrap:break-word!important}body [data-template-role="controls"]{display:grid!important;grid-row:auto!important;grid-column:auto!important;width:100%!important;margin:0 0 14px!important;padding:14px!important;border-left:0!important;border-top:1px solid var(--template-border,currentColor)!important}body [data-template-role="story"]{columns:1!important;width:100%!important;max-width:100%!important;margin:0!important;transform:none!important}body [data-template-role="raster"]{display:block!important;min-height:220px!important;width:100%!important;white-space:pre-wrap!important;overflow:auto!important}body [data-template-role="table"]{width:100%!important;overflow:auto!important}body[data-template-family="editorial"] section,body[data-template-family="editorial"] article{transform:none!important}body[data-template-family="typelab"] [data-template-role="stage"]{width:100%!important}body[data-template-family="ascii"] main{display:block!important}body[data-template-family="board"] [data-template-role="board"]{overflow:visible!important}body[data-template-family="carousel"] [data-template-role="carousel"]{display:grid!important;min-height:0!important}body[data-template-family="mobile"] [data-template-role="device"]{width:100%!important;min-height:0!important;border-width:4px!important;border-radius:24px!important}}`;
 
+const familyAwareCss = `
+body[data-template-family="typelab"] .type-specimen h1{max-width:100%!important;font-size:clamp(5rem,10cqi,8.5rem)!important;line-height:.7!important;letter-spacing:-.075em!important}
+body[data-template-family="typelab"] .type-specimen h1 span{white-space:nowrap}
+body[data-template-family="typelab"].variant-safe .type-specimen h1{font-size:clamp(4rem,7cqi,6rem)!important;line-height:.78!important}
+body[data-template-family="typelab"].variant-bold .type-specimen h1{font-size:clamp(6rem,11.5cqi,10rem)!important;line-height:.68!important}
+body[data-template-family="typelab"].variant-safe .axis-panel{grid-column:1/-1;grid-row:auto;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--template-border)}
+body[data-template-family="typelab"].variant-bold .type-stage{grid-template-columns:1.45fr .7fr .5fr;transform:translateX(2%) rotate(-.7deg)}
+body[data-template-family="editorial"] [data-template-role="hero"] h1{font-size:clamp(4rem,10cqi,8.5rem)!important;line-height:.82!important}
+body[data-template-family="experimental"] [data-template-role="hero"] h1{font-size:clamp(4.5rem,12cqi,11rem)!important;line-height:.72!important}
+body[data-template-family="canvas"] [data-template-role="hero"] h1{font-size:clamp(3.5rem,8cqi,8rem)!important;line-height:.78!important}
+body[data-template-family="collage"] [data-template-role="hero"] h1{font-size:clamp(4rem,10cqi,9rem)!important;line-height:.75!important}
+body[data-template-family="carousel"] [data-template-role="hero"] h1,body[data-template-family="exhibit"] [data-template-role="hero"] h1{font-size:clamp(4rem,9cqi,8rem)!important;line-height:.78!important}
+@container(max-width:720px){
+  body[data-template-family="typelab"] .type-lab-shell{display:flex!important;flex-direction:column}
+  body[data-template-family="typelab"] .type-specimen h1,body[data-template-family="typelab"].variant-safe .type-specimen h1,body[data-template-family="typelab"].variant-bold .type-specimen h1{max-width:100%!important;font-size:clamp(2.8rem,13cqi,4.4rem)!important;line-height:.76!important}
+  body[data-template-family="typelab"] .type-specimen h1 span{white-space:normal}
+  body[data-template-family="typelab"] .axis-panel{order:2;grid-template-columns:1fr!important}
+  body[data-template-family="typelab"] .type-stage{order:3;display:grid!important;grid-template-columns:1fr!important;transform:none!important}
+  body[data-template-family="typelab"] .type-action{order:4}
+  body[data-template-family="editorial"] [data-template-role="hero"] h1,body[data-template-family="experimental"] [data-template-role="hero"] h1,body[data-template-family="canvas"] [data-template-role="hero"] h1,body[data-template-family="collage"] [data-template-role="hero"] h1,body[data-template-family="carousel"] [data-template-role="hero"] h1,body[data-template-family="exhibit"] [data-template-role="hero"] h1{max-width:100%!important;font-size:clamp(2.7rem,12cqi,4.2rem)!important;line-height:.82!important}
+}`;
+
 export function applyResponsivePreviewSafety(html: string) {
   let safe = /<meta[^>]+name=["']viewport["']/i.test(html) ? html : html.replace(/<head([^>]*)>/i, '<head$1><meta name="viewport" content="width=device-width, initial-scale=1">');
   const adaptiveType = `h1{font-size:clamp(2.5rem,6cqi,6.25rem)!important;line-height:.88!important}[data-template-role="hero"] h2{font-size:clamp(1.65rem,3.8cqi,3.75rem)!important}@container(max-width:720px){h1{font-size:clamp(2.35rem,9cqi,4.8rem)!important}}@container(max-width:420px){h1{font-size:clamp(2.15rem,11cqi,3.65rem)!important}[data-template-role="hero"] h2{font-size:clamp(1.45rem,7cqi,2.5rem)!important}}`;
-  const style = `<style id="compose-responsive-safety">${responsiveSafetyCss}${mobileFamilySafetyCss}${adaptiveType}</style>`;
+  const style = `<style id="compose-responsive-safety">${responsiveSafetyCss}${mobileFamilySafetyCss}${adaptiveType}${familyAwareCss}</style>`;
   safe = safe.replace(/<\/head>/i, `${style}</head>`);
   return safe;
 }

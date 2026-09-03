@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const page = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
 const preview = fs.readFileSync(new URL('../app/components/visual-engine-preview.tsx', import.meta.url), 'utf8');
-const capsulePreview = fs.readFileSync(new URL('../app/components/capsule-template-preview.tsx', import.meta.url), 'utf8');
+const unifiedPreview = fs.readFileSync(new URL('../app/components/template-document-preview.tsx', import.meta.url), 'utf8');
 const uxPreview = fs.readFileSync(new URL('../app/components/ux-preview-overlay.tsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 const api = fs.readFileSync(new URL('../app/api/design/route.ts', import.meta.url), 'utf8');
@@ -15,6 +15,9 @@ const sharedCompiler = fs.readFileSync(new URL('../lib/shared-template-compiler.
 const sharedPreview = fs.readFileSync(new URL('../app/components/shared-template-preview.tsx', import.meta.url), 'utf8');
 const headingScale = fs.readFileSync(new URL('../lib/heading-scale.ts', import.meta.url), 'utf8');
 const capsuleCompiler = fs.readFileSync(new URL('../lib/capsule-template-compiler.ts', import.meta.url), 'utf8');
+const templateRenderer = fs.readFileSync(new URL('../lib/render-template-document.ts', import.meta.url), 'utf8');
+const selectionContract = fs.readFileSync(new URL('../lib/selection-contract.ts', import.meta.url), 'utf8');
+const uxContract = fs.readFileSync(new URL('../lib/ux-pattern-contract.ts', import.meta.url), 'utf8');
 const failures = [];
 
 const directionBlock = page.match(/const directionFields:[\s\S]*?\n};\nconst visualDirections/)?.[0] || '';
@@ -41,6 +44,8 @@ for (const ux of ['none','onboarding','workspace','discovery','creation','review
   if (!uxPreview.includes(`pattern === '${ux}'`)) failures.push(`UX 缺少实时组件：${ux}`);
 }
 if (!uxPreview.includes('ux-preview-mobile')) failures.push('UX 缺少实时组件：mobiletask');
+for (const ux of ['onboarding','workspace','discovery','creation','review','monitoring','conversion','mobiletask']) if (!uxContract.includes(`${ux}:`)) failures.push(`UX 缺少同源交付组件：${ux}`);
+if (!templateRenderer.includes('applyUxPatternContract')) failures.push('UX 预览与交付未使用同一编译链');
 
 const visualBlock = page.match(/const visualDirections = \[([\s\S]*?)\n\];/)?.[1] || '';
 const visualIds = [...visualBlock.matchAll(/\['([^']+)'/g)].map((match) => match[1]);
@@ -54,9 +59,8 @@ for (const key of generationKeys) {
   if (!api.includes(key)) failures.push(`生成接口缺少约束：${key}`);
   if (!page.includes(key)) failures.push(`客户端缺少提交字段：${key}`);
 }
-for (const marker of ['coverageKeys','enforceSelectionContract','compose-selection-contract','incomplete coverage']) {
-  if (!api.includes(marker)) failures.push(`生成验证器缺少：${marker}`);
-}
+for (const marker of ['coverageKeys','incomplete coverage']) if (!api.includes(marker)) failures.push(`生成验证器缺少：${marker}`);
+for (const marker of ['applySelectionContract','compose-selection-contract']) if (!selectionContract.includes(marker)) failures.push(`生成验证器缺少：${marker}`);
 for (const marker of ['maxLength: 12000','maxLength: 220','max_output_tokens: 26000','服务器会统一格式化最终源码']) {
   if (!api.includes(marker)) failures.push(`生成长度保护缺少：${marker}`);
 }
@@ -71,7 +75,7 @@ for (const marker of ['main{height:auto!important;min-height:0!important','max-w
   if (!responsiveSafety.includes(marker)) failures.push(`桌面稳定流缺少：${marker}`);
 }
 for (const marker of ['--display-fluid','cqi','template-editorial','template-kinetic']) if (!sharedCompiler.includes(marker)) failures.push(`共享模板流体字号缺少：${marker}`);
-if (!api.includes('applyResponsivePreviewSafety') || !api.includes('hasResponsiveTextStructure')) failures.push('生成接口缺少响应式防重叠处理');
+if (!templateRenderer.includes('applyResponsivePreviewSafety') || !api.includes('hasResponsiveTextStructure')) failures.push('生成接口缺少响应式防重叠处理');
 for (const marker of ['findGeneratedMetadataLeaks','高级字段','MORPH','当前视觉实现引擎','模板代码配方']) {
   if (!contentGuard.includes(marker)) failures.push(`生成内容防泄漏缺少：${marker}`);
 }
@@ -92,16 +96,16 @@ for (const template of ['minimal','editorial','spatial','precision','kinetic']) 
 for (const marker of ['compileTemplateHtml','PageIR','variant-safe','variant-balanced','variant-bold','data-template-version="2.2"','data-variant-profile','data-layout-mode']) {
   if (!sharedCompiler.includes(marker)) failures.push(`共享模板链路缺少：${marker}`);
 }
-if (!sharedPreview.includes('compileTemplateHtml')) failures.push('共享模板预览缺少编译器');
-for (const marker of ['compileCapsuleTemplateHtml','applyResponsivePreviewSafety','preserveCapsuleStage','applyCapsuleLayoutGuard']) if (!capsulePreview.includes(marker)) failures.push(`视觉库同源预览缺少：${marker}`);
-if (!page.includes('VisualEnginePreview')) failures.push('视觉库未使用丰富的独立方向演示');
+if (!sharedPreview.includes('renderTemplateDocument')) failures.push('共享模板预览缺少统一编译器');
+for (const marker of ['compileCapsuleTemplateHtml','applyResponsivePreviewSafety','preserveCapsuleStage','applyCapsuleLayoutGuard']) if (!templateRenderer.includes(marker)) failures.push(`视觉库同源预览缺少：${marker}`);
+if (!page.includes('TemplateDocumentPreview') || !unifiedPreview.includes('renderTemplateDocument')) failures.push('视觉库未使用同源模板演示');
 if (!api.includes('generateDeterministicTemplates') || !api.includes('pageIRSchema') || !api.includes('max_output_tokens: 6000')) failures.push('生成接口未使用 PageIR 与确定性模板编译');
 for (const family of ['data','board','editorial','portfolio','mobile','skeuomorphic','spatial','typelab','collage','exhibit','canvas','carousel','ascii','experimental']) {
   if (!capsuleCompiler.includes(`family === '${family}'`)) failures.push(`确定性模板编译器缺少家族：${family}`);
 }
 for (const marker of ['compileCapsuleTemplateHtml','data-template-version="3.4"','data-variant-profile','pageForVariant','capsuleVariantCss','compose-template-capsule','preserveCapsuleStage','compose-template-stage-preservation','applyCapsuleLayoutGuard','compose-template-layout-guard','data-layout-mode','productMarkup','polaris-workspace','soft-workspace','max-width:900px']) if (!capsuleCompiler.includes(marker)) failures.push(`确定性模板编译器缺少：${marker}`);
 for (const marker of ['productEngineMarkup','productEngineCss','productVariantCss','visual-${esc(templateId)}','data-template-version="3.3"','ed-product-side','ed-product-grid']) if (!capsuleCompiler.includes(marker)) failures.push(`Spectrum/Fluent 同源交付缺少：${marker}`);
-if (!api.includes('compileCapsuleTemplateHtml') || !api.includes('applyCapsuleLayoutGuard') || !api.includes('return generateDeterministicTemplates')) failures.push('全部视觉方向尚未切换到确定性模板链路');
+if (!api.includes('renderTemplateDocument') || !templateRenderer.includes('compileCapsuleTemplateHtml') || !templateRenderer.includes('applyCapsuleLayoutGuard') || !api.includes('return generateDeterministicTemplates')) failures.push('全部视觉方向尚未切换到确定性模板链路');
 for (const marker of ['compose-heading-scale','html body h1','html body h2','html body h3','max-width:720px','max-width:420px']) if (!headingScale.includes(marker)) failures.push(`交付标题控制缺少：${marker}`);
 for (const marker of ['headingScale','deliveryHtml','标题大小','调整各级标题大小']) if (!page.includes(marker)) failures.push(`交付标题滑块缺少：${marker}`);
 

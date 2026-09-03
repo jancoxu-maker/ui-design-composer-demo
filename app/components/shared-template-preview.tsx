@@ -1,6 +1,7 @@
 'use client';
 
-import { compileTemplateHtml, defaultPageIR, type TemplateSelections, type TemplateVariant } from '../../lib/shared-template-compiler';
+import { defaultPageIR, type TemplateSelections, type TemplateVariant } from '../../lib/shared-template-compiler';
+import { renderTemplateDocument } from '../../lib/render-template-document';
 import { FixedTemplateCanvas } from './fixed-template-canvas';
 
 type Props = {
@@ -12,6 +13,6 @@ type Props = {
 };
 
 export function SharedTemplatePreview({ direction, title, selections, device, variant = 'balanced' }: Props) {
-  const html = compileTemplateHtml(direction, { ...defaultPageIR, title }, selections, variant);
+  const html = renderTemplateDocument(direction, { ...defaultPageIR, title }, selections, variant);
   return <FixedTemplateCanvas html={html} title={`${direction} 共享模板实时预览`} device={device}/>;
 }
