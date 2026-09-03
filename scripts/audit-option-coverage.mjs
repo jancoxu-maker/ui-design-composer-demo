@@ -89,9 +89,10 @@ for (const marker of ["width: 1440","width: 390","'compare'","ResizeObserver","s
 }
 if (!fixedTemplateCanvas.includes('sandbox="allow-scripts"') || fixedTemplateCanvas.includes('allow-same-origin')) failures.push('同源模板预览沙箱配置不安全或无法运行模板动效');
 for (const marker of ['preventDefault','composeNavigation','window.open=()=>null']) if (!navigationContract.includes(marker)) failures.push(`交付预览缺少空点击护栏：${marker}`);
-for (const marker of ['ResponsiveDeliveryPreview','适应窗口','100%','Web','手机','对比']) {
+for (const marker of ['ResponsiveDeliveryPreview','适应窗口','100%','WEB · 1440 × 900']) {
   if (!page.includes(marker)) failures.push(`客户端缺少交付预览控制：${marker}`);
 }
+if (page.includes("['mobile','手机']") || page.includes("['compare','对比']") || page.includes('setPreviewDevice')) failures.push('手机版或双端对比入口仍显示在交付界面');
 for (const marker of ['compose-template-capsule','data-compose-template','requiredRoles','htmlSkeleton','cssFoundation']) {
   if (!capsules.includes(marker)) failures.push(`模板代码配方缺少：${marker}`);
 }
