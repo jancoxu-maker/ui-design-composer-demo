@@ -200,6 +200,7 @@ export default function Home() {
   const activeDirectionSettings = Object.fromEntries(activeFields.map((field) => [field.key, directionSettings[`${visualDirection}:${field.key}`] || field.defaultValue]));
   const directionSettingClasses = activeFields.map((field) => `setting-${field.key}-${activeDirectionSettings[field.key]}`).join(' ');
   const richPreviewClasses = [
+    `visual-${visualDirection}`,
     `style-${style}`,
     `template-${template}`,
     `type-${typeTone}`,

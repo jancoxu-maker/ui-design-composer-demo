@@ -48,6 +48,7 @@ if (!templateRenderer.includes('applyUxPatternContract')) failures.push('UX 预�
 
 const visualBlock = page.match(/const visualDirections = \[([\s\S]*?)\n\];/)?.[1] || '';
 const visualIds = [...visualBlock.matchAll(/\['([^']+)'/g)].map((match) => match[1]);
+if (!page.includes('`visual-${visualDirection}`')) failures.push('视觉方向没有绑定到实时预览根节点');
 for (const direction of visualIds) {
   if (!preview.includes(`direction === '${direction}'`) && !['minimal','fluent','spectrum'].includes(direction)) failures.push(`视觉方向缺少独立预览：${direction}`);
   if (!capsules.includes(`  ${direction}: {`)) failures.push(`视觉方向缺少生成代码配方：${direction}`);
