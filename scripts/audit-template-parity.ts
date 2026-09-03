@@ -5,6 +5,9 @@ import { defaultPageIR, type TemplateVariant } from '../lib/shared-template-comp
 import { renderTemplateDocument } from '../lib/render-template-document';
 import { evaluateTemplateParity, templateParityIds } from '../lib/template-parity';
 import { formatGeneratedHtml } from '../lib/format-generated-html';
+import { buildAgentTemplatePackage } from '../lib/agent-template-package';
+import { getTemplateGenerationCapsule } from '../lib/template-generation-capsules';
+import { getVisualStyleRecipe } from '../lib/visual-style-engine';
 
 const variants: TemplateVariant[] = ['safe', 'balanced', 'bold'];
 const baseSelections = {
@@ -48,6 +51,9 @@ const longTitleHtml = renderTemplateDocument('kinetic', { ...defaultPageIR, titl
 if (!/data-compose-title-length="extra-long"/.test(longTitleHtml)) failures.push({ templateId: 'kinetic', variant: 'bold', scenario: 'long-title', score: 0, missing: ['长中文标题保护'] });
 const mediumCjkTitleHtml = renderTemplateDocument('ambientcarousel', { ...defaultPageIR, title: '统一管理创意项目、素材与交付' }, baseSelections, 'balanced');
 if (!/data-compose-title-length="long"/.test(mediumCjkTitleHtml)) failures.push({ templateId: 'ambientcarousel', variant: 'balanced', scenario: 'cjk-title', score: 0, missing: ['中文标题保护'] });
+
+const agentPackage = buildAgentTemplatePackage({ directionName: '现代产品极简', directionDescription: '清晰网格、中性表面与克制层级', recipe: getVisualStyleRecipe('minimal'), capsule: getTemplateGenerationCapsule('minimal'), uxName: '无 UX 方案', uxPrinciples: [], typeName: '现代无衬线', accent: '#7657ff', corners: '圆角', density: 52, motion: 58, headingScale: 100, directionSettings: [], preserve: ['内容文字'] });
+if (!agentPackage.prompt.includes('模板核心代码') || !agentPackage.prompt.includes('data-template-role="hero"') || !agentPackage.keywords.includes('现代产品极简')) scriptFailures.push({ templateId: 'minimal', variant: 'balanced', scenario: 'agent-package', error: 'incomplete agent template package' });
 
 const total = templateParityIds.length * variants.length * scenarios.length;
 console.log(JSON.stringify({ templates: templateParityIds.length, variants: total, passed: total - failures.length, failed: failures.length, failures, scriptFailures, outputDirectory }, null, 2));

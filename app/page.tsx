@@ -9,6 +9,8 @@ import type { DeliveryDevice, DeliveryScaleMode } from './components/responsive-
 import { VisualEnginePreview } from './components/visual-engine-preview';
 import { isSharedTemplate } from '../lib/shared-template-compiler';
 import { applyHeadingScale } from '../lib/heading-scale';
+import { buildAgentTemplatePackage } from '../lib/agent-template-package';
+import { getTemplateGenerationCapsule } from '../lib/template-generation-capsules';
 
 type DesignCoverage = Record<'goal' | 'audience' | 'ux' | 'visual' | 'type' | 'directionSettings' | 'corners' | 'accent' | 'density' | 'motion' | 'preserveLocks', string>;
 type TemplateParity = { score: number; passed: boolean; mode: 'full-template' | 'visual-only'; missing: string[]; checks: Array<{ id: string; label: string; passed: boolean; applicable: boolean }> };
@@ -162,8 +164,8 @@ export default function Home() {
   const [previewZoom, setPreviewZoom] = useState<100 | 85>(100);
   const [deliveryScaleMode, setDeliveryScaleMode] = useState<DeliveryScaleMode>('fit');
   const [headingScale, setHeadingScale] = useState(100);
-  const [outputMode, setOutputMode] = useState<'preview' | 'code'>('preview');
-  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [outputMode, setOutputMode] = useState<'preview' | 'code' | 'agent'>('preview');
+  const [copyState, setCopyState] = useState<'idle' | 'html' | 'agent'>('idle');
   const [goal, setGoal] = useState('brand');
   const [style, setStyle] = useState('paper');
   const [template, setTemplate] = useState('editorial');
@@ -215,10 +217,30 @@ export default function Home() {
     directionSettingClasses,
   ].join(' ');
   const activeDirectionName = visualDirections.find(([id]) => id === visualDirection)?.[1] || '现代产品极简';
+  const activeDirectionDescription = visualDirections.find(([id]) => id === visualDirection)?.[2] || '';
   const activeUXPattern = uxPatterns.find((pattern) => pattern.id === uxPattern) || uxPatterns[2];
   const sourcePreviewLabel = '通用演示内容';
   const audienceLabel = audience === 'general' ? '大众用户' : audience === 'professional' ? '专业用户' : '内部团队';
   const deliveryHtml = useMemo(() => activeVariant ? applyHeadingScale(activeVariant.html, headingScale) : '', [activeVariant, headingScale]);
+  const agentTemplatePackage = useMemo(() => {
+    if (!activeVariant) return null;
+    return buildAgentTemplatePackage({
+      directionName: activeDirectionName,
+      directionDescription: activeDirectionDescription,
+      recipe: activeRecipe,
+      capsule: getTemplateGenerationCapsule(activeVariant.templateId),
+      uxName: activeUXPattern.name,
+      uxPrinciples: activeUXPattern.principles,
+      typeName: typeOptions.find(([id]) => id === typeTone)?.[1] || typeTone,
+      accent,
+      corners: cornerOptions.find(([id]) => id === corners)?.[1] || corners,
+      density,
+      motion,
+      headingScale,
+      directionSettings: activeFields.map((field) => ({ label: field.label, value: field.options.find(([id]) => id === activeDirectionSettings[field.key])?.[1] || activeDirectionSettings[field.key] })),
+      preserve: preserve.map((id) => preserveOptions.find(([key]) => key === id)?.[1] || id),
+    });
+  }, [activeVariant, activeDirectionName, activeDirectionDescription, activeRecipe, activeUXPattern, typeTone, accent, corners, density, motion, headingScale, activeFields, activeDirectionSettings, preserve]);
 
   function toggleLock(key: string) {
     setLocks((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
@@ -356,13 +378,13 @@ export default function Home() {
     setResults(false);
   }
 
-  async function copyHtml() {
-    if (!activeVariant) return;
+  async function copyText(value: string, kind: 'html' | 'agent') {
+    if (!value) return;
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(deliveryHtml);
+      await navigator.clipboard.writeText(value);
     } else {
       const textarea = document.createElement('textarea');
-      textarea.value = deliveryHtml;
+      textarea.value = value;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -370,8 +392,13 @@ export default function Home() {
       document.execCommand('copy');
       textarea.remove();
     }
-    setCopyState('copied');
+    setCopyState(kind);
     window.setTimeout(() => setCopyState('idle'), 1600);
+  }
+
+  async function copyCurrentOutput() {
+    if (outputMode === 'agent') return copyText(agentTemplatePackage?.prompt || '', 'agent');
+    return copyText(deliveryHtml, 'html');
   }
 
   function downloadHtml() {
@@ -465,9 +492,9 @@ export default function Home() {
         </section>
 
         <section className="preview" aria-label="视觉引擎与生成结果">
-          <header><div><i/> <b>{activeVariant ? 'HTML 交付结果' : '视觉引擎演示'}</b><small>{activeVariant ? activeVariant.title : `${activeRecipe.engine} · 非原稿预览`}</small></div>{activeVariant ? <nav className="output-tabs" aria-label="HTML 结果查看方式"><button className={outputMode === 'preview' ? 'active' : ''} type="button" onClick={() => setOutputMode('preview')}>效果</button><button className={outputMode === 'code' ? 'active' : ''} type="button" onClick={() => setOutputMode('code')}>代码</button><button type="button" onClick={copyHtml}>{copyState === 'copied' ? '已复制' : '复制'}</button><button type="button" onClick={downloadHtml}>下载</button></nav> : <nav aria-label="演示尺寸"><button className={previewDevice !== 'mobile' ? 'active' : ''} type="button" onClick={() => setPreviewDevice('desktop')} aria-label="桌面端演示">▭</button><button className={previewDevice === 'mobile' ? 'active' : ''} type="button" onClick={() => setPreviewDevice('mobile')} aria-label="移动端演示">▯</button><button className={previewZoom === 85 ? 'active' : ''} type="button" onClick={() => setPreviewZoom(previewZoom === 100 ? 85 : 100)}>{previewZoom}%</button></nav>}</header>
+          <header><div><i/> <b>{activeVariant ? 'HTML 交付结果' : '视觉引擎演示'}</b><small>{activeVariant ? activeVariant.title : `${activeRecipe.engine} · 非原稿预览`}</small></div>{activeVariant ? <nav className="output-tabs" aria-label="HTML 结果查看方式"><button className={outputMode === 'preview' ? 'active' : ''} type="button" onClick={() => setOutputMode('preview')}>效果</button><button className={outputMode === 'code' ? 'active' : ''} type="button" onClick={() => setOutputMode('code')}>代码</button><button className={outputMode === 'agent' ? 'active' : ''} type="button" onClick={() => setOutputMode('agent')}>智能体应用包</button><button type="button" onClick={copyCurrentOutput}>{copyState !== 'idle' ? '已复制' : outputMode === 'agent' ? '复制应用包' : '复制 HTML'}</button><button type="button" onClick={downloadHtml}>下载 HTML</button></nav> : <nav aria-label="演示尺寸"><button className={previewDevice !== 'mobile' ? 'active' : ''} type="button" onClick={() => setPreviewDevice('desktop')} aria-label="桌面端演示">▭</button><button className={previewDevice === 'mobile' ? 'active' : ''} type="button" onClick={() => setPreviewDevice('mobile')} aria-label="移动端演示">▯</button><button className={previewZoom === 85 ? 'active' : ''} type="button" onClick={() => setPreviewZoom(previewZoom === 100 ? 85 : 100)}>{previewZoom}%</button></nav>}</header>
           {activeVariant && outputMode === 'preview' && <div className="delivery-toolbar"><nav aria-label="交付预览设备">{([['desktop','Web'],['mobile','手机'],['compare','对比']] as const).map(([id,label]) => <button key={id} type="button" className={previewDevice === id ? 'active' : ''} onClick={() => setPreviewDevice(id)}>{label}</button>)}</nav><label className="delivery-type-control"><span><b>标题大小</b><output>{headingScale}%</output></span><input aria-label="调整各级标题大小" type="range" min="80" max="125" step="5" value={headingScale} onChange={(event) => setHeadingScale(Number(event.target.value))}/></label><nav aria-label="交付预览缩放">{([['fit','适应窗口'],['actual','100%']] as const).map(([id,label]) => <button key={id} type="button" className={deliveryScaleMode === id ? 'active' : ''} onClick={() => setDeliveryScaleMode(id)}>{label}</button>)}</nav></div>}
-          <div className={`preview-shell ${activeVariant && outputMode === 'preview' ? 'delivery-result-shell' : ''}`}><div className={`preview-viewport ${activeVariant ? 'delivery-mode' : `device-${previewDevice} zoom-${previewZoom}`}`}>{activeVariant ? outputMode === 'preview' ? <ResponsiveDeliveryPreview html={deliveryHtml} title={activeVariant.title} device={previewDevice} scaleMode={deliveryScaleMode}/> : <div className="code-delivery"><header><span><b>完整单页 HTML</b><small>{activeVariant.templateId} {isSharedTemplate(activeVariant.templateId) ? '共享模板已编译' : '视觉模板已编译'} · 标题 {headingScale}% · 包含结构、样式、响应式与动效</small></span><em>{deliveryHtml.length.toLocaleString()} 字符</em></header><pre><code>{deliveryHtml}</code></pre></div> : <div className={`ux-live-frame ux-${uxPattern}`}><VisualEnginePreview direction={visualDirection} directionName={activeDirectionName} title={previewTitle} goal={goal} audience={audience} accent={accent} density={density} motion={motion} className={richPreviewClasses}/><UXPreviewOverlay pattern={uxPattern} patternName={activeUXPattern.name}/></div>}</div></div>
+          <div className={`preview-shell ${activeVariant && outputMode === 'preview' ? 'delivery-result-shell' : ''}`}><div className={`preview-viewport ${activeVariant ? 'delivery-mode' : `device-${previewDevice} zoom-${previewZoom}`}`}>{activeVariant ? outputMode === 'preview' ? <ResponsiveDeliveryPreview html={deliveryHtml} title={activeVariant.title} device={previewDevice} scaleMode={deliveryScaleMode}/> : outputMode === 'agent' && agentTemplatePackage ? <div className="agent-delivery"><header><span><b>跨智能体模板应用包</b><small>包含关键词、设计约束、当前配置与可复用核心代码</small></span><em>{agentTemplatePackage.prompt.length.toLocaleString()} 字符</em></header><section><b>模板关键词</b><div>{agentTemplatePackage.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></section><pre><code>{agentTemplatePackage.prompt}</code></pre></div> : <div className="code-delivery"><header><span><b>完整单页 HTML</b><small>{activeVariant.templateId} {isSharedTemplate(activeVariant.templateId) ? '共享模板已编译' : '视觉模板已编译'} · 标题 {headingScale}% · 包含结构、样式、响应式与动效</small></span><em>{deliveryHtml.length.toLocaleString()} 字符</em></header><pre><code>{deliveryHtml}</code></pre></div> : <div className={`ux-live-frame ux-${uxPattern}`}><VisualEnginePreview direction={visualDirection} directionName={activeDirectionName} title={previewTitle} goal={goal} audience={audience} accent={accent} density={density} motion={motion} className={richPreviewClasses}/><UXPreviewOverlay pattern={uxPattern} patternName={activeUXPattern.name}/></div>}</div></div>
           <div className="tokens preview-contract-tokens" aria-label="实时生效的完整配置"><span className="verified">✓ 实时映射</span><span>{sourcePreviewLabel}</span><span>{goals.find(([id]) => id === goal)?.[1]}</span><span>{audienceLabel}</span><span>{activeUXPattern.name}</span><span>{activeDirectionName}</span><span>{typeOptions.find(([id]) => id === typeTone)?.[1]}</span>{activeFields.map((field) => <span key={field.key}>{field.label}：{field.options.find(([id]) => id === activeDirectionSettings[field.key])?.[1]}</span>)}<span>{cornerOptions.find(([id]) => id === corners)?.[1]}</span><span><i style={{background: accent}}/>{accent.toUpperCase()}</span><span>密度 {density}</span><span>动效 {motion}</span>{preserve.map((id) => <span key={id} className="locked-token">锁定：{preserveOptions.find(([key]) => key === id)?.[1]}</span>)}</div>
           {results && designResult && <div className="results" role="status"><header><span><small>{designResult.direction}</small><b>已生成 3 个交付强度版本</b></span><button type="button" onClick={() => setResults(false)}>×</button></header><div>{designResult.variants.map((variant) => { const applicable = variant.templateParity?.checks.filter((check) => check.applicable) ?? []; const passed = applicable.filter((check) => check.passed).length; return <button key={variant.id} type="button" className={`${activeVariant?.id === variant.id ? 'recommended' : ''}`} onClick={() => { setActiveVariant(variant); setOutputMode('preview'); }}><span className={`result-pic ${variant.id === 'balanced' ? 'brand' : variant.id === 'bold' ? 'explore' : 'safe'}`}><i/><i/><i/></span><b>{variant.title}</b><small>{variant.summary}</small><mark>{variant.templateVerified ? '✓' : '⚠'} {variant.templateVerified ? `交付检查 ${passed}/${applicable.length}` : `未通过：${variant.templateParity?.missing.join('、') || '模板约束'}`} · {Object.keys(variant.coverage).length}/11 约束</mark>{variant.id === 'balanced' && <em>推荐</em>}</button>; })}</div></div>}
         </section>

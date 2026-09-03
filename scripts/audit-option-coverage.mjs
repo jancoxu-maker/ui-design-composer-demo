@@ -10,6 +10,7 @@ const formatter = fs.readFileSync(new URL('../lib/format-generated-html.ts', imp
 const responsiveSafety = fs.readFileSync(new URL('../lib/responsive-preview-safety.ts', import.meta.url), 'utf8');
 const contentGuard = fs.readFileSync(new URL('../lib/generated-content-guard.ts', import.meta.url), 'utf8');
 const deliveryPreview = fs.readFileSync(new URL('../app/components/responsive-delivery-preview.tsx', import.meta.url), 'utf8');
+const agentPackage = fs.readFileSync(new URL('../lib/agent-template-package.ts', import.meta.url), 'utf8');
 const sharedCompiler = fs.readFileSync(new URL('../lib/shared-template-compiler.ts', import.meta.url), 'utf8');
 const sharedPreview = fs.readFileSync(new URL('../app/components/shared-template-preview.tsx', import.meta.url), 'utf8');
 const headingScale = fs.readFileSync(new URL('../lib/heading-scale.ts', import.meta.url), 'utf8');
@@ -76,6 +77,8 @@ for (const marker of ['main{height:auto!important;min-height:0!important','max-w
 }
 for (const marker of ['--display-fluid','cqi','template-editorial','template-kinetic']) if (!sharedCompiler.includes(marker)) failures.push(`共享模板流体字号缺少：${marker}`);
 if (!templateRenderer.includes('applyResponsivePreviewSafety') || !api.includes('hasResponsiveTextStructure')) failures.push('生成接口缺少响应式防重叠处理');
+for (const marker of ['智能体应用包','buildAgentTemplatePackage','复制应用包']) if (!page.includes(marker)) failures.push(`交付结果缺少跨智能体输出：${marker}`);
+for (const marker of ['模板核心代码','requiredRoles','forbidden','prefers-reduced-motion']) if (!agentPackage.includes(marker)) failures.push(`智能体应用包缺少：${marker}`);
 for (const marker of ['findGeneratedMetadataLeaks','高级字段','MORPH','当前视觉实现引擎','模板代码配方']) {
   if (!contentGuard.includes(marker)) failures.push(`生成内容防泄漏缺少：${marker}`);
 }
