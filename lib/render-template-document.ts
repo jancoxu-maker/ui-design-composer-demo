@@ -3,6 +3,7 @@ import { applyResponsivePreviewSafety } from './responsive-preview-safety';
 import { applySelectionContract } from './selection-contract';
 import { compileTemplateHtml, isSharedTemplate, type PageIR, type TemplateSelections, type TemplateVariant } from './shared-template-compiler';
 import { applyUxPatternContract } from './ux-pattern-contract';
+import { applyTemplateInteractionContract } from './template-interaction-contract';
 
 export type RenderTemplateSelections = TemplateSelections & Record<string, unknown>;
 
@@ -18,10 +19,10 @@ export function renderTemplateDocument(
   variant: TemplateVariant = 'balanced',
 ) {
   if (isSharedTemplate(templateId)) {
-    return applyUxPatternContract(compileTemplateHtml(templateId, page, selections, variant), selections);
+    return applyTemplateInteractionContract(applyUxPatternContract(compileTemplateHtml(templateId, page, selections, variant), selections), templateId, selections);
   }
 
-  return applyUxPatternContract(applyCapsuleLayoutGuard(
+  return applyTemplateInteractionContract(applyUxPatternContract(applyCapsuleLayoutGuard(
     preserveCapsuleStage(
       applyResponsivePreviewSafety(
         applySelectionContract(
@@ -30,5 +31,5 @@ export function renderTemplateDocument(
         ),
       ),
     ),
-  ), selections);
+  ), selections), templateId, selections);
 }

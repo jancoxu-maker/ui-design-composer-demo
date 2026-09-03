@@ -53,7 +53,7 @@ const fingerprints: Record<string, Omit<Fingerprint, 'roles'>> = {
   typelab: { layout: ['type-lab-shell', 'axis-panel', 'type-stage'], surface: ['border-left:1px solid var(--template-border)', 'background:var(--compose-accent)'], typography: ['Arial Narrow', 'font-stretch:condensed'] },
   altweb: { layout: ['data-template-role="windows"', 'position:absolute;width:48%'], surface: ['--template-bg:#dfff73', '8px 8px 0 #111'], typography: ['ui-monospace,monospace', 'font-weight:700'] },
   exhibit: { layout: ['data-template-role="stage"', 'perspective:900px', 'rotateY(-7deg)'], surface: ['--template-bg:#151418', '0 30px 70px rgba(0,0,0,.42)'], typography: ['Helvetica,Arial', 'font-weight:700'] },
-  infinitecanvas: { layout: ['data-template-role="canvas"', 'position:absolute;width:28%'], surface: ['background-size:24px 24px', 'radial-gradient(circle,rgba(73,64,79,.42)'], typography: ['Inter,Arial', 'font-weight:700'] },
+  infinitecanvas: { layout: ['data-template-role="canvas"', 'position:absolute;width:28%', 'compose-canvas-controls'], surface: ['background-size:24px 24px', 'radial-gradient(circle,rgba(73,64,79,.42)', 'backdrop-filter:blur(14px)'], typography: ['Inter,Arial', 'font-weight:700'] },
   assembly: { layout: ['data-template-role="story"', 'transform:rotate(-.6deg)', 'margin-left:20%'], surface: ['--template-bg:#eee6d6', '8px 10px 0'], typography: ['Georgia,"Songti SC",serif', 'line-height:.9'] },
   ambientcarousel: { layout: ['data-template-role="carousel"', 'perspective:1000px', 'rotateY(12deg)'], surface: ['backdrop-filter:blur(16px)', 'radial-gradient(circle at 20% 20%,#8f70ff'], typography: ['Helvetica,Arial', 'font-weight:700'] },
   textgallery: { layout: ['data-template-role="story"', 'columns:2', 'column-gap:48px'], surface: ['text-decoration-color:var(--compose-accent)', '--template-bg:#f5efe3'], typography: ['Georgia,"Songti SC",serif', 'font-size:clamp(52px'] },
@@ -80,7 +80,7 @@ export function evaluateTemplateParity(templateIdInput: unknown, html: string, o
     { id: 'layout', label: '版式指纹', passed: !fullTemplate || containsAll(normalized, fingerprint.layout), applicable: fullTemplate },
     { id: 'surface', label: '材质与色彩', passed: containsAll(normalized, fingerprint.surface), applicable: true },
     { id: 'typography', label: '字体层级', passed: containsAll(normalized, fingerprint.typography), applicable: true },
-    { id: 'motion', label: '动效规则', passed: /--(?:compose-)?duration:/.test(normalized) && /prefers-reduced-motion/.test(normalized) && /transition/.test(normalized), applicable: true },
+    { id: 'motion', label: '动效规则', passed: /--(?:compose-)?duration:/.test(normalized) && /prefers-reduced-motion/.test(normalized) && /transition/.test(normalized) && (templateId !== 'infinitecanvas' || /data-compose-canvas-motion=["'](?:interactive|reduced)["']/.test(html)), applicable: true },
     { id: 'responsive', label: '双端响应式', passed: /<meta[^>]+name=["']viewport["']/i.test(html) && /@(media|container)\(max-width:(?:640|720|760|900)px\)/.test(normalized), applicable: true },
   ];
   const applicableChecks = checks.filter((check) => check.applicable);

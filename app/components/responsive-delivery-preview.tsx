@@ -17,26 +17,6 @@ const devices = {
   mobile: { label: 'MOBILE', width: 390, height: 844 },
 } as const;
 
-function containPreviewNavigation(iframe: HTMLIFrameElement) {
-  const document = iframe.contentDocument;
-  if (!document || document.documentElement.dataset.previewNavigationReady === 'true') return;
-  document.documentElement.dataset.previewNavigationReady = 'true';
-  document.addEventListener('click', (event) => {
-    const target = event.target as { closest?: (selector: string) => HTMLAnchorElement | null } | null;
-    const anchor = target?.closest?.('a');
-    if (!anchor) return;
-    const href = anchor.getAttribute('href')?.trim() || '';
-    event.preventDefault();
-    if (!href.startsWith('#')) return;
-    const id = decodeURIComponent(href.slice(1));
-    const destination = id ? document.getElementById(id) : document.documentElement;
-    const reducedMotion = iframe.contentWindow?.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    destination?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-    anchor.focus({ preventScroll: true });
-  });
-  document.addEventListener('submit', (event) => event.preventDefault());
-}
-
 function DeviceFrame({ html, title, kind, availableWidth, scaleMode, fitHeight }: { html: string; title: string; kind: 'desktop' | 'mobile'; availableWidth: number; scaleMode: DeliveryScaleMode; fitHeight: number }) {
   const config = devices[kind];
   const scale = scaleMode === 'actual' ? 1 : Math.min(1, Math.max(.12, (availableWidth - 12) / config.width), fitHeight / config.height);
@@ -44,7 +24,7 @@ function DeviceFrame({ html, title, kind, availableWidth, scaleMode, fitHeight }
     <header><b>{config.label}</b><span>{config.width} × {config.height}</span><i>{Math.round(scale * 100)}%</i></header>
     <div className="delivery-device-window" style={{ width: Math.round(config.width * scale), height: Math.round(config.height * scale) }}>
       <div className="delivery-device-canvas" style={{ width: config.width, height: config.height, transform: `scale(${scale})` }}>
-        <iframe title={`${title} · ${config.label}`} sandbox="allow-same-origin" srcDoc={html} onLoad={(event) => containPreviewNavigation(event.currentTarget)}/>
+        <iframe title={`${title} · ${config.label}`} sandbox="allow-scripts" srcDoc={html}/>
       </div>
     </div>
   </section>;
