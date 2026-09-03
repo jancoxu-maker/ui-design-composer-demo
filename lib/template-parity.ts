@@ -2,7 +2,7 @@ import { getTemplateGenerationCapsule } from './template-generation-capsules';
 import { isSharedTemplate } from './shared-template-compiler';
 
 export type TemplateParityCheck = {
-  id: 'identity' | 'structure' | 'layout' | 'surface' | 'typography' | 'motion' | 'responsive';
+  id: 'identity' | 'structure' | 'layout' | 'surface' | 'typography' | 'motion' | 'interaction' | 'readability' | 'responsive';
   label: string;
   passed: boolean;
   applicable: boolean;
@@ -68,6 +68,12 @@ function rolesFor(templateId: string) {
   return isSharedTemplate(templateId) ? sharedRoles[templateId] : getTemplateGenerationCapsule(templateId).requiredRoles;
 }
 
+const interactionSignatures: Record<string, RegExp> = {
+  infinitecanvas: /data-compose-canvas-motion=["'](?:interactive|reduced)["']/,
+  ambientcarousel: /id=["']compose-carousel-motion["']/,
+  textgallery: /id=["']compose-text-gallery-motion["']/,
+};
+
 export function evaluateTemplateParity(templateIdInput: unknown, html: string, options: { preserveStructure?: boolean } = {}): TemplateParityReport {
   const templateId = String(templateIdInput || 'minimal');
   const fingerprint = fingerprints[templateId] || fingerprints.minimal;
@@ -81,6 +87,8 @@ export function evaluateTemplateParity(templateIdInput: unknown, html: string, o
     { id: 'surface', label: '材质与色彩', passed: containsAll(normalized, fingerprint.surface), applicable: true },
     { id: 'typography', label: '字体层级', passed: containsAll(normalized, fingerprint.typography), applicable: true },
     { id: 'motion', label: '动效规则', passed: /--(?:compose-)?duration:/.test(normalized) && /prefers-reduced-motion/.test(normalized) && /transition/.test(normalized) && (templateId !== 'infinitecanvas' || /data-compose-canvas-motion=["'](?:interactive|reduced)["']/.test(html)), applicable: true },
+    { id: 'interaction', label: '核心交互', passed: !interactionSignatures[templateId] || interactionSignatures[templateId].test(html), applicable: Boolean(interactionSignatures[templateId]) },
+    { id: 'readability', label: '文字防碰撞', passed: /id=["']compose-title-safety["']/.test(html) && /data-compose-title-length=["'](?:short|long|extra-long)["']/.test(html) && /overflow-wrap:(?:anywhere|break-word)/.test(normalized), applicable: true },
     { id: 'responsive', label: '双端响应式', passed: /<meta[^>]+name=["']viewport["']/i.test(html) && /@(media|container)\(max-width:(?:640|720|760|900)px\)/.test(normalized), applicable: true },
   ];
   const applicableChecks = checks.filter((check) => check.applicable);

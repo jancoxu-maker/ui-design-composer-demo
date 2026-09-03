@@ -37,13 +37,75 @@ body[data-canvas-nav="guided"] [data-template-role="canvas"]:after{content:"01  
   return { navigation, spread, motionMode: motionDisabled ? 'reduced' : 'interactive', style, controls, script };
 }
 
+function carouselInteraction(selections: RenderTemplateSelections) {
+  const motionDisabled = selections.motionProfile === 'none' || Number(selections.motion) <= 12;
+  const style = `<style id="compose-carousel-interaction">
+body[data-compose-template="ambientcarousel"]{--carousel-active:1;--carousel-glow-a:#8f70ff;--carousel-glow-b:#ff987a}
+body[data-compose-template="ambientcarousel"] [data-template-role="ambient-field"]{background:radial-gradient(circle at 24% 28%,var(--carousel-glow-a),transparent 44%),radial-gradient(circle at 78% 68%,var(--carousel-glow-b),transparent 46%);transition:background 680ms cubic-bezier(.16,1,.3,1)}
+body[data-compose-template="ambientcarousel"] [data-template-role="carousel"]{position:relative;overflow:hidden!important;perspective:1100px;isolation:isolate}
+body[data-compose-template="ambientcarousel"] [data-template-role="carousel"]>article{cursor:pointer;opacity:.58;filter:saturate(.72);transform:translateX(-8%) rotateY(13deg) scale(.88)!important;transform-origin:center;transition:transform 620ms cubic-bezier(.16,1,.3,1),opacity 420ms ease,filter 420ms ease,box-shadow 420ms ease!important}
+body[data-compose-template="ambientcarousel"] [data-template-role="carousel"]>article[data-carousel-state="active"]{z-index:3;opacity:1;filter:none;transform:translateY(-10px) rotateY(0) scale(1.06)!important;box-shadow:0 34px 72px rgba(35,25,45,.28)}
+body[data-compose-template="ambientcarousel"] [data-template-role="carousel"]>article[data-carousel-state="after"]{transform:translateX(8%) rotateY(-13deg) scale(.88)!important}
+.compose-carousel-controls{display:flex;align-items:center;justify-content:center;gap:10px;margin:-18px auto 8px;position:relative;z-index:8}
+.compose-carousel-controls button{display:grid;place-items:center;width:44px;min-height:44px;padding:0;border:1px solid var(--template-border);border-radius:50%;background:var(--template-surface);color:var(--template-ink);box-shadow:var(--template-shadow);font:700 18px/1 system-ui;backdrop-filter:blur(16px)}
+.compose-carousel-controls button:hover,.compose-carousel-controls button:focus-visible{background:var(--compose-accent);color:var(--compose-accent-contrast);outline:3px solid color-mix(in srgb,var(--compose-accent) 32%,white);outline-offset:2px}
+.compose-carousel-controls output{min-width:58px;text-align:center;font:700 11px/1.2 ui-monospace,monospace}
+@container(max-width:640px){body[data-compose-template="ambientcarousel"] [data-template-role="carousel"]>article{opacity:1!important;filter:none!important;transform:none!important}.compose-carousel-controls{display:none}}
+@media(prefers-reduced-motion:reduce){body[data-compose-template="ambientcarousel"] [data-template-role="ambient-field"],body[data-compose-template="ambientcarousel"] [data-template-role="carousel"]>article{transition:none!important}}
+</style>`;
+  const controls = `<nav class="compose-carousel-controls" data-carousel-controls aria-label="轮播控制"><button type="button" data-carousel-step="-1" aria-label="上一个项目">←</button><output aria-live="polite">02 / 03</output><button type="button" data-carousel-step="1" aria-label="下一个项目">→</button></nav>`;
+  const script = `<script id="compose-carousel-motion">
+(()=>{const root=document.body,track=document.querySelector('[data-template-role="carousel"]'),items=[...(track?.querySelectorAll(':scope > article')||[])],controls=document.querySelector('[data-carousel-controls]'),output=controls?.querySelector('output');if(!track||items.length<2)return;let active=Math.min(1,items.length-1);const colors=[['#8f70ff','#62dfff'],['#7657ff','#ff987a'],['#ff7f92','#d8ff73']];const render=()=>{items.forEach((item,index)=>{item.dataset.carouselState=index===active?'active':index<active?'before':'after';item.setAttribute('aria-label',(index===active?'当前项目，':'')+(item.querySelector('h2')?.textContent||'项目 '+(index+1)));item.tabIndex=0});const pair=colors[active%colors.length];root.style.setProperty('--carousel-glow-a',pair[0]);root.style.setProperty('--carousel-glow-b',pair[1]);if(output)output.textContent=String(active+1).padStart(2,'0')+' / '+String(items.length).padStart(2,'0')};const select=index=>{active=(index+items.length)%items.length;render()};controls?.addEventListener('click',event=>{const step=Number(event.target.closest('button')?.dataset.carouselStep||0);if(step)select(active+step)});items.forEach((item,index)=>{item.addEventListener('click',()=>select(index));item.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select(index)}if(event.key==='ArrowLeft')select(active-1);if(event.key==='ArrowRight')select(active+1)})});root.dataset.composeCarouselMotion='${motionDisabled ? 'reduced' : 'interactive'}';render();window.__composeCarouselReady=true})();
+</script>`;
+  return { style, controls, script };
+}
+
+function textGalleryInteraction(selections: RenderTemplateSelections) {
+  const motionDisabled = selections.motionProfile === 'none' || Number(selections.motion) <= 12;
+  const style = `<style id="compose-text-gallery-interaction">
+body[data-compose-template="textgallery"] [data-template-role="story"]{position:relative;padding-right:min(34vw,420px)}
+body[data-compose-template="textgallery"] [data-template-role="story"]>section{break-inside:avoid;padding:16px 8px;border-top:1px solid var(--template-border);cursor:pointer;transition:color 220ms ease,transform 220ms ease}
+body[data-compose-template="textgallery"] [data-template-role="story"]>section:hover,body[data-compose-template="textgallery"] [data-template-role="story"]>section:focus-visible,body[data-compose-template="textgallery"] [data-template-role="story"]>section[data-text-active="true"]{color:var(--compose-accent);transform:translateX(8px);outline:0}
+.compose-text-gallery-preview{position:absolute;z-index:5;right:18px;top:76px;width:min(29vw,360px);aspect-ratio:4/5;overflow:hidden;border:1px solid var(--template-border);background:#17151a;box-shadow:var(--template-shadow);pointer-events:none}
+.compose-text-gallery-preview i{position:absolute;inset:0;opacity:0;transform:scale(1.08);transition:opacity 360ms ease,transform 620ms cubic-bezier(.16,1,.3,1)}
+.compose-text-gallery-preview i:nth-child(1){background:radial-gradient(circle at 72% 24%,#dfff73 0 14%,transparent 15%),linear-gradient(145deg,#7657ff,#ff987a)}
+.compose-text-gallery-preview i:nth-child(2){background:linear-gradient(25deg,transparent 0 32%,#17151a 33% 53%,transparent 54%),linear-gradient(135deg,#f5efe3,#ff7d64)}
+.compose-text-gallery-preview i:nth-child(3){background:repeating-linear-gradient(90deg,#17151a 0 2px,transparent 2px 18px),linear-gradient(145deg,#65e1c0,#7657ff)}
+.compose-text-gallery-preview i[data-active="true"]{opacity:1;transform:scale(1)}
+.compose-text-gallery-preview span{position:absolute;z-index:2;left:16px;bottom:14px;padding:6px 8px;background:#fffaf0;color:#17151a;font:700 10px/1 ui-monospace,monospace}
+@container(max-width:760px){body[data-compose-template="textgallery"] [data-template-role="story"]{padding-right:20px}.compose-text-gallery-preview{position:relative;right:auto;top:auto;width:100%;max-width:none;aspect-ratio:16/10;margin:18px 0 0}}
+@media(prefers-reduced-motion:reduce){body[data-compose-template="textgallery"] [data-template-role="story"]>section,.compose-text-gallery-preview i{transition:none!important;transform:none!important}}
+</style>`;
+  const preview = `<aside class="compose-text-gallery-preview" data-text-gallery-preview aria-label="文字触发视觉预览" aria-live="polite"><i data-active="true"></i><i></i><i></i><span>01 / 03</span></aside>`;
+  const script = `<script id="compose-text-gallery-motion">
+(()=>{const root=document.body,story=document.querySelector('[data-template-role="story"]'),sections=[...(story?.querySelectorAll(':scope > section')||[])],preview=document.querySelector('[data-text-gallery-preview]'),panels=[...(preview?.querySelectorAll('i')||[])],label=preview?.querySelector('span');if(!story||!preview||!sections.length)return;const render=index=>{const active=index%panels.length;sections.forEach((section,itemIndex)=>{section.tabIndex=0;section.dataset.textActive=itemIndex===index?'true':'false';section.setAttribute('aria-label',(itemIndex===index?'当前预览，':'')+(section.querySelector('h3')?.textContent||'内容 '+(itemIndex+1)))});panels.forEach((panel,itemIndex)=>panel.dataset.active=itemIndex===active?'true':'false');if(label)label.textContent=String(active+1).padStart(2,'0')+' / '+String(panels.length).padStart(2,'0')};sections.forEach((section,index)=>{section.addEventListener('pointerenter',()=>render(index));section.addEventListener('focus',()=>render(index));section.addEventListener('click',()=>render(index));section.addEventListener('keydown',event=>{if(event.key==='ArrowDown'||event.key==='ArrowRight'){event.preventDefault();sections[(index+1)%sections.length].focus()}if(event.key==='ArrowUp'||event.key==='ArrowLeft'){event.preventDefault();sections[(index-1+sections.length)%sections.length].focus()}})});root.dataset.composeTextGalleryMotion='${motionDisabled ? 'reduced' : 'interactive'}';render(0);window.__composeTextGalleryReady=true})();
+</script>`;
+  return { style, preview, script };
+}
+
 export function applyTemplateInteractionContract(html: string, templateIdInput: unknown, selections: RenderTemplateSelections = {}) {
   const templateId = String(templateIdInput || 'minimal');
-  if (templateId !== 'infinitecanvas') return html;
-  const interaction = canvasInteraction(selections);
-  return html
-    .replace(/<body([^>]*)>/i, `<body$1 data-canvas-nav="${interaction.navigation}" data-canvas-spread="${interaction.spread}" data-compose-canvas-motion="${interaction.motionMode}">`)
-    .replace(/(<main[^>]*data-template-role="canvas"[^>]*>)/i, `$1${interaction.controls}`)
-    .replace(/<\/head>/i, `${interaction.style}</head>`)
-    .replace(/<\/body>/i, `${interaction.script}</body>`);
+  if (templateId === 'infinitecanvas') {
+    const interaction = canvasInteraction(selections);
+    return html
+      .replace(/<body([^>]*)>/i, `<body$1 data-canvas-nav="${interaction.navigation}" data-canvas-spread="${interaction.spread}" data-compose-canvas-motion="${interaction.motionMode}">`)
+      .replace(/(<main[^>]*data-template-role="canvas"[^>]*>)/i, `$1${interaction.controls}`)
+      .replace(/<\/head>/i, `${interaction.style}</head>`)
+      .replace(/<\/body>/i, `${interaction.script}</body>`);
+  }
+  if (templateId === 'ambientcarousel') {
+    const interaction = carouselInteraction(selections);
+    return html
+      .replace(/(<\/section>)(<a[^>]*data-template-role="primary-action")/i, `$1${interaction.controls}$2`)
+      .replace(/<\/head>/i, `${interaction.style}</head>`)
+      .replace(/<\/body>/i, `${interaction.script}</body>`);
+  }
+  if (templateId === 'textgallery') {
+    const interaction = textGalleryInteraction(selections);
+    return html
+      .replace(/(<article[^>]*data-template-role="story"[^>]*>[\s\S]*?)(<\/article>)/i, `$1${interaction.preview}$2`)
+      .replace(/<\/head>/i, `${interaction.style}</head>`)
+      .replace(/<\/body>/i, `${interaction.script}</body>`);
+  }
+  return html;
 }

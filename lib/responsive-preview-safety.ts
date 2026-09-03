@@ -32,6 +32,19 @@ export function applyResponsivePreviewSafety(html: string) {
   return safe;
 }
 
+const titleSafetyCss = `:where(h1,h2,h3){overflow-wrap:anywhere;text-wrap:balance}body[data-compose-title-length="long"] [data-template-role="hero"] h1{max-inline-size:13ch!important;font-size:clamp(3rem,7cqi,6.8rem)!important;line-height:.94!important;letter-spacing:-.045em!important;word-break:normal!important}body[data-compose-title-length="long"][data-template-family="experimental"] [data-template-role="hero"] h1{max-inline-size:12ch!important;font-size:clamp(3.2rem,7.4cqi,7.2rem)!important;line-height:.9!important}body[data-compose-title-length="extra-long"] [data-template-role="hero"] h1{max-inline-size:16ch!important;font-size:clamp(2.65rem,5.8cqi,5.8rem)!important;line-height:.98!important;letter-spacing:-.035em!important;word-break:normal!important}@container(max-width:640px){body[data-compose-title-length="long"] [data-template-role="hero"] h1,body[data-compose-title-length="extra-long"] [data-template-role="hero"] h1{max-inline-size:100%!important;font-size:clamp(2.15rem,10cqi,3.2rem)!important;line-height:1.04!important;letter-spacing:-.025em!important;word-break:normal!important}}`;
+
+export function applyResponsiveTitleSafety(html: string) {
+  if (/id=["']compose-title-safety["']/.test(html)) return html;
+  const rawHeading = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '';
+  const headingText = rawHeading.replace(/<[^>]+>/g, '').replace(/&[^;]+;/g, 'x').replace(/\s+/g, '');
+  const cjkLength = (headingText.match(/[\u3400-\u9fff]/g) || []).length;
+  const lengthProfile = headingText.length > 28 || cjkLength > 20 ? 'extra-long' : headingText.length > 16 || cjkLength > 10 ? 'long' : 'short';
+  return html
+    .replace(/<body([^>]*)>/i, `<body$1 data-compose-title-length="${lengthProfile}">`)
+    .replace(/<\/head>/i, `<style id="compose-title-safety">${titleSafetyCss}</style></head>`);
+}
+
 export function hasResponsiveTextStructure(html: string) {
   const headings = html.match(/<h1\b/gi) || [];
   const heroContainsHeading = /<([a-z][\w-]*)[^>]*data-template-role=["']hero["'][^>]*>[\s\S]*?<h1\b/i.test(html);

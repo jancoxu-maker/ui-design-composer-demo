@@ -24,6 +24,7 @@ const scenarios: Array<{ id: string; uxPattern: string; preserve: string[]; lock
   { id: 'locked', uxPattern: 'none', preserve: ['content', 'structure'], locks: ['content', 'layout'], preserveStructure: true },
 ];
 const failures: Array<{ templateId: string; variant: string; scenario: string; score: number; missing: string[] }> = [];
+const scriptFailures: Array<{ templateId: string; variant: string; scenario: string; error: string }> = [];
 const outputDirectory = await mkdtemp(join(tmpdir(), 'compose-template-parity-'));
 
 for (const templateId of templateParityIds) {
@@ -31,12 +32,20 @@ for (const templateId of templateParityIds) {
     for (const scenario of scenarios) {
       const html = formatGeneratedHtml(renderTemplateDocument(templateId, defaultPageIR, { ...baseSelections, ...scenario, visualDirection: templateId }, variant));
       const report = evaluateTemplateParity(templateId, html, { preserveStructure: scenario.preserveStructure });
+      for (const source of [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1])) {
+        try { new Function(source); } catch (error) { scriptFailures.push({ templateId, variant, scenario: scenario.id, error: String(error) }); }
+      }
       await writeFile(join(outputDirectory, `${templateId}-${variant}-${scenario.id}.html`), html);
       if (!report.passed) failures.push({ templateId, variant, scenario: scenario.id, score: report.score, missing: report.missing });
     }
   }
 }
 
+const longTitleHtml = renderTemplateDocument('kinetic', { ...defaultPageIR, title: '把创意任务资产审核反馈与所有交付环节集中到同一个专业工作台' }, baseSelections, 'bold');
+if (!/data-compose-title-length="extra-long"/.test(longTitleHtml)) failures.push({ templateId: 'kinetic', variant: 'bold', scenario: 'long-title', score: 0, missing: ['长中文标题保护'] });
+const mediumCjkTitleHtml = renderTemplateDocument('ambientcarousel', { ...defaultPageIR, title: '统一管理创意项目、素材与交付' }, baseSelections, 'balanced');
+if (!/data-compose-title-length="long"/.test(mediumCjkTitleHtml)) failures.push({ templateId: 'ambientcarousel', variant: 'balanced', scenario: 'cjk-title', score: 0, missing: ['中文标题保护'] });
+
 const total = templateParityIds.length * variants.length * scenarios.length;
-console.log(JSON.stringify({ templates: templateParityIds.length, variants: total, passed: total - failures.length, failed: failures.length, failures, outputDirectory }, null, 2));
-if (failures.length) process.exitCode = 1;
+console.log(JSON.stringify({ templates: templateParityIds.length, variants: total, passed: total - failures.length, failed: failures.length, failures, scriptFailures, outputDirectory }, null, 2));
+if (failures.length || scriptFailures.length) process.exitCode = 1;

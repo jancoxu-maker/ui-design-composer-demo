@@ -1,5 +1,5 @@
 import { applyCapsuleLayoutGuard, compileCapsuleTemplateHtml, preserveCapsuleStage } from './capsule-template-compiler';
-import { applyResponsivePreviewSafety } from './responsive-preview-safety';
+import { applyResponsivePreviewSafety, applyResponsiveTitleSafety } from './responsive-preview-safety';
 import { applySelectionContract } from './selection-contract';
 import { compileTemplateHtml, isSharedTemplate, type PageIR, type TemplateSelections, type TemplateVariant } from './shared-template-compiler';
 import { applyUxPatternContract } from './ux-pattern-contract';
@@ -19,10 +19,10 @@ export function renderTemplateDocument(
   variant: TemplateVariant = 'balanced',
 ) {
   if (isSharedTemplate(templateId)) {
-    return applyTemplateInteractionContract(applyUxPatternContract(compileTemplateHtml(templateId, page, selections, variant), selections), templateId, selections);
+    return applyResponsiveTitleSafety(applyTemplateInteractionContract(applyUxPatternContract(compileTemplateHtml(templateId, page, selections, variant), selections), templateId, selections));
   }
 
-  return applyTemplateInteractionContract(applyUxPatternContract(applyCapsuleLayoutGuard(
+  return applyResponsiveTitleSafety(applyTemplateInteractionContract(applyUxPatternContract(applyCapsuleLayoutGuard(
     preserveCapsuleStage(
       applyResponsivePreviewSafety(
         applySelectionContract(
@@ -31,5 +31,5 @@ export function renderTemplateDocument(
         ),
       ),
     ),
-  ), selections), templateId, selections);
+  ), selections), templateId, selections));
 }
