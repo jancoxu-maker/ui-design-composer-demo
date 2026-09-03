@@ -31,6 +31,9 @@ for (const templateId of templateParityIds) {
   for (const variant of variants) {
     for (const scenario of scenarios) {
       const html = formatGeneratedHtml(renderTemplateDocument(templateId, defaultPageIR, { ...baseSelections, ...scenario, visualDirection: templateId }, variant));
+      if (!html.includes('id="compose-non-navigating-interactions"') || !html.includes("dataset.composeNavigation='disabled'")) {
+        scriptFailures.push({ templateId, variant, scenario: scenario.id, error: 'missing non-navigating interaction contract' });
+      }
       const report = evaluateTemplateParity(templateId, html, { preserveStructure: scenario.preserveStructure });
       for (const source of [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1])) {
         try { new Function(source); } catch (error) { scriptFailures.push({ templateId, variant, scenario: scenario.id, error: String(error) }); }

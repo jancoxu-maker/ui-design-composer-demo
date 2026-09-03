@@ -4,6 +4,7 @@ import { applySelectionContract } from './selection-contract';
 import { compileTemplateHtml, isSharedTemplate, type PageIR, type TemplateSelections, type TemplateVariant } from './shared-template-compiler';
 import { applyUxPatternContract } from './ux-pattern-contract';
 import { applyTemplateInteractionContract } from './template-interaction-contract';
+import { applyNonNavigatingInteractionContract } from './non-navigating-interaction-contract';
 
 export type RenderTemplateSelections = TemplateSelections & Record<string, unknown>;
 
@@ -19,10 +20,10 @@ export function renderTemplateDocument(
   variant: TemplateVariant = 'balanced',
 ) {
   if (isSharedTemplate(templateId)) {
-    return applyResponsiveTitleSafety(applyTemplateInteractionContract(applyUxPatternContract(compileTemplateHtml(templateId, page, selections, variant), selections), templateId, selections));
+    return applyNonNavigatingInteractionContract(applyResponsiveTitleSafety(applyTemplateInteractionContract(applyUxPatternContract(compileTemplateHtml(templateId, page, selections, variant), selections), templateId, selections)));
   }
 
-  return applyResponsiveTitleSafety(applyTemplateInteractionContract(applyUxPatternContract(applyCapsuleLayoutGuard(
+  return applyNonNavigatingInteractionContract(applyResponsiveTitleSafety(applyTemplateInteractionContract(applyUxPatternContract(applyCapsuleLayoutGuard(
     preserveCapsuleStage(
       applyResponsivePreviewSafety(
         applySelectionContract(
@@ -31,5 +32,5 @@ export function renderTemplateDocument(
         ),
       ),
     ),
-  ), selections), templateId, selections));
+  ), selections), templateId, selections)));
 }
